@@ -1,30 +1,30 @@
-# image-gen
+# image-gateway
 
-Personal image-generation studio built on the gpt-image model family.
+Personal image-generation gateway built on the gpt-image model family, with an optional interactive Mac studio.
 
-Two parts:
+Parts:
 
-- **`gateway/`** — a stateless HTTP service (Elysia + Bun) wrapping an OpenAI-compatible image API: generation, editing, reference images, prompt planning (`/enhance`). No database, no storage — images and usage data flow straight through to the client. Deployed on a VPS, reachable only over a private tailnet with bearer auth.
-- **`app/`** — a macOS studio app (Tauri v2, React + Mantine/basalt-ui) as the primary client: Plan-driven Create surface, a local-first library with projects, roles, lineage and style guides — every generation lands as a Finder-browsable folder with a JSON metadata sidecar.
+- **`gateway/`** — the primary surface: a stateless HTTP service (Elysia + Bun) wrapping an OpenAI-compatible image API: generation, editing, reference images, prompt planning (`/enhance`). No database, no storage — images and usage data flow straight through to the client. Deployed on a VPS, reachable only over a private tailnet with bearer auth. Agents reach it through `imgcli gen` (the dotfiles `/img` skill).
+- **`app/`** — an optional macOS studio app (Tauri v2, React + Mantine/basalt-ui) for interactive work: Plan-driven Create surface, a local-first library with projects, roles, lineage and style guides — every generation lands as a Finder-browsable folder with a JSON metadata sidecar.
 
 A small `shared/` workspace package holds the zod contract and the prompting playbook both sides build against.
 
 ## Status
 
 - **Gateway: live on the VPS** (`make gateway-status`, `make gateway-smoke`). Two models, `gpt-image-2.5-flare`/`gpt-image-2.5-sunburst`; transparency is available on both (`AGENTS.md`).
-- **Studio app: revived on the MacBook** (its UI machine — see *MacBook install*). Agents never need it: generation from the Mac mini goes through `imgcli gen` (the dotfiles `/img` skill), which calls the same gateway and hands results to image-share.
+- **Studio app: supported on the MacBook** (its UI machine — see *MacBook install*). Agents never need it: generation from the Mac mini goes through `imgcli gen` (the dotfiles `/img` skill), which calls the same gateway.
 
 Scope and waves: [`PRD.md`](PRD.md). Mental model and IA: [`docs/concept.md`](docs/concept.md). Ground truth about the upstream: [`docs/research/endpoint-verification.md`](docs/research/endpoint-verification.md).
 
 ## MacBook install
 
-Prerequisites: Xcode Command Line Tools (`xcode-select --install`), a Rust toolchain ≥ 1.85 (`rustup`), and `bun`. The 1Password app signed in to the personal account — `make configure` reads the tokens through it.
+Prerequisites: Xcode Command Line Tools (`xcode-select --install`), a Rust toolchain ≥ 1.85 (`rustup`), and `bun`. The 1Password app signed in to the personal account — `make configure` reads the token through it.
 
 ```bash
-cd ~/SourceRoot && git clone git@github.com:jkrumm/image-gen.git && cd image-gen
+cd ~/SourceRoot && git clone git@github.com:jkrumm/image-gateway.git && cd image-gateway
 bun install --frozen-lockfile
 make app          # release build (~70 s warm, ~10 min cold) → /Applications/ImageGen.app, fingerprinted
-make configure    # biometric op: seeds gateway + image-share tokens, never asks in-app
+make configure    # biometric op: seeds the gateway URL + token, never asks in-app
 make app-run      # refuses to launch an app that is not built from this working tree
 ```
 
@@ -37,7 +37,7 @@ bun install
 bun run dev        # gateway (:7716, killed+rebound) + Tauri app, concurrently
 ```
 
-Gateway alone: `bun run --filter '@image-gen/gateway' dev` — upstream creds resolve from 1Password via `secrets-run`; the local bearer is the literal `dev-local` (point the app's settings at `http://localhost:7716` with that token). App alone: `bun run tauri dev` in `app/`. Root `typecheck`/`test` fan out across workspaces the same way (`make check` runs everything).
+Gateway alone: `bun run --filter '@image-gateway/gateway' dev` — upstream creds resolve from 1Password via `secrets-run`; the local bearer is the literal `dev-local` (point the app's settings at `http://localhost:7716` with that token). App alone: `bun run tauri dev` in `app/`. Root `typecheck`/`test` fan out across workspaces the same way (`make check` runs everything).
 
 ## Logs
 

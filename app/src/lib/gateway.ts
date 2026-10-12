@@ -13,12 +13,12 @@ import {
   type GenerateResponse,
   type PlanRequestInput,
   type PlanResponse,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import { fetch } from '@tauri-apps/plugin-http'
 import type { ServiceConnection } from './settings'
 
 /**
- * Calls the image-gen gateway's `POST /generate` and `POST /edit`. Uses
+ * Calls the image-gateway's `POST /generate` and `POST /edit`. Uses
  * `@tauri-apps/plugin-http`'s `fetch` (routed through the Rust client) instead of the
  * webview's `fetch`, so the tailnet-only gateway host isn't subject to WKWebView CORS
  * restrictions. Verified against the installed plugin's source (2.5.9): the response

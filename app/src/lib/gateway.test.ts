@@ -10,7 +10,7 @@
  * confirm those.
  */
 import { describe, expect, test } from 'bun:test'
-import { planResponseSchema, type GenerateResponse } from '@image-gen/shared'
+import { planResponseSchema, type GenerateResponse } from '@image-gateway/shared'
 import { consumeSseStream, handleFrame, parseJsonEnvelope, type StreamHandlers } from './gateway'
 
 const GENERATE_RESPONSE: GenerateResponse = {

@@ -1,4 +1,4 @@
-import type { GenerateResponse, ImageModel, StreamEvent } from '@image-gen/shared'
+import type { GenerateResponse, ImageModel, StreamEvent } from '@image-gateway/shared'
 import { magicBytesValid } from './upstream.js'
 import { readSSEFrames, parseSSEFrame, mapPartialImageFrame } from './sse.js'
 import type { UpstreamCompletedData, UpstreamPartialImageData } from './sse.js'

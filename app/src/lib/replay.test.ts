@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { generateRequestSchema, resolveModel, validateSizeForModel } from '@image-gen/shared'
+import { generateRequestSchema, resolveModel, validateSizeForModel } from '@image-gateway/shared'
 import {
   buildPromoteRequest,
   buildRerunRequest,

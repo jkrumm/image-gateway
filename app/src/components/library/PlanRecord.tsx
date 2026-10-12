@@ -1,4 +1,4 @@
-import type { SidecarEnhance } from '@image-gen/shared'
+import type { SidecarEnhance } from '@image-gateway/shared'
 import { Badge, Group, Stack, Text } from '@mantine/core'
 
 function warningColor(action: 'accepted' | 'dismissed'): string {

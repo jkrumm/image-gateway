@@ -7,7 +7,7 @@ import {
   type GenerateResponse,
   type GenerationParent,
   type SidecarEnhance,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import { join, pictureDir } from '@tauri-apps/api/path'
 import { warn as logWarn } from '@tauri-apps/plugin-log'
 import {

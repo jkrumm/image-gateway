@@ -21,6 +21,6 @@ jobs:
       - uses: jkrumm/rollhook-action@v1
         with:
           url: https://rollhook.jkrumm.com
-          image_name: image-gen-gateway
+          image_name: image-gateway
           dockerfile: gateway/Dockerfile
           context: .

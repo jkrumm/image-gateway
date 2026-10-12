@@ -1,4 +1,4 @@
-# PRD: image-gen — Personal Image Generation Studio
+# PRD: image-gateway — Personal Image Generation Gateway and Studio
 
 ## Problem
 
@@ -16,7 +16,7 @@ The redesign turns the app from an API console into a studio with a brain. Full 
 
 ## Non-goals
 
-- MCP facade, multi-user, cloud state, public exposure — **except delivery of finished assets via image-share (Share/Publish from the Library inspector)**, which is a deliberate, scoped carve-out: HTTP to image-share only, no generic S3/SMB/SSH delivery connectors, no in-app public exposure of anything but an image a user explicitly published.
+- MCP facade, multi-user, cloud state, public exposure. Delivery/sharing of finished assets is out of scope for this repo (it lives in a separate app); the gateway returns bytes, the app writes them to the local library.
 - Style strength sliders, lineage graph canvases, embeddings/semantic search, auto-tagging, chat-shaped enhancement, in-app playbook editing, moderation simulators (rejected with rationale in `docs/concept.md` §9).
 - SQLite in the first waves — in-memory index over sidecars; SQLite is the named escape hatch.
 - SVG vectorization is not scheduled. Transparency (previously an open gap needing local matting) shipped natively 2026-09-23 — both generatable models have a real alpha channel; status lives in `AGENTS.md` → *The studio generates on two models*.

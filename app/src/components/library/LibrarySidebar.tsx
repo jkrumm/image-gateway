@@ -1,4 +1,4 @@
-import type { Project } from '@image-gen/shared'
+import type { Project } from '@image-gateway/shared'
 import { Group, NavLink, Stack, Text, Title } from '@mantine/core'
 import type { LibraryScope } from '../../lib/library-filters'
 

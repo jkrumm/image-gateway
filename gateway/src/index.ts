@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 import { z } from 'zod'
 import { openapi } from '@elysiajs/openapi'
-import { PLAYBOOK_VERSION } from '@image-gen/shared'
+import { PLAYBOOK_VERSION } from '@image-gateway/shared'
 import { env } from './env.js'
 import { authGuard } from './lib/auth-guard.js'
 import { healthRoute, setDraining } from './routes/health.js'
@@ -15,7 +15,7 @@ export const app = new Elysia()
       mapJsonSchema: { zod: z.toJSONSchema },
       documentation: {
         info: {
-          title: 'image-gen-gateway',
+          title: 'image-gateway',
           version: '0.1.0',
           description:
             'Stateless gateway wrapping the gpt-image model family. Accepts a prompt and parameters, calls the upstream image-generations/edits endpoints, and returns base64 images with usage/cost telemetry. Supports SSE streaming previews on both `/generate` and `/edit`. Also exposes `/enhance`, the "Plan" brain: compiles the versioned playbook into a system prompt, asks a text model for a structured plan, and resolves it through `rules.ts` — never generates an image. No database, no image storage. All routes except `GET /` and `GET /health` require `Authorization: Bearer <API_SECRET>`.',
@@ -46,7 +46,7 @@ export const app = new Elysia()
   .get(
     '/',
     () => ({
-      name: 'image-gen-gateway',
+      name: 'image-gateway',
       version: '0.1.0',
       docs: {
         scalar: '/openapi',
@@ -102,13 +102,13 @@ export const app = new Elysia()
 export type App = typeof app
 
 // oxlint-disable-next-line no-console -- startup log, not request-scoped structured logging
-console.log(`image-gen-gateway running on port ${env.PORT}`)
+console.log(`image-gateway running on port ${env.PORT}`)
 
 // Graceful shutdown: stop accepting new work and let /health report 503
 // immediately, then close the server.
 const shutdown = (signal: string): void => {
   // oxlint-disable-next-line no-console -- shutdown log, not request-scoped structured logging
-  console.log(`image-gen-gateway received ${signal}, shutting down`)
+  console.log(`image-gateway received ${signal}, shutting down`)
   setDraining(true)
   void app.stop().then(() => process.exit(0))
 }

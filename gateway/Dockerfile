@@ -3,7 +3,7 @@
 # workspace resolution). Build with: docker build -f gateway/Dockerfile .
 #
 # Only `app/package.json` is copied (not its source) so bun can resolve the
-# workspace list; `--filter='@image-gen/gateway'` then installs just the
+# workspace list; `--filter='@image-gateway/gateway'` then installs just the
 # gateway + shared dependency graph, skipping the app's (Tauri/React) deps.
 
 FROM oven/bun:1.3-alpine AS builder
@@ -16,7 +16,7 @@ COPY app/package.json app/package.json
 # Cache mount: bun's global install cache (root's HOME here — this stage has no
 # USER). It lives outside the layer, so it speeds rebuilds without growing the image.
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-  bun install --frozen-lockfile --production --ignore-scripts --filter='@image-gen/gateway'
+  bun install --frozen-lockfile --production --ignore-scripts --filter='@image-gateway/gateway'
 
 COPY shared/tsconfig.json shared/tsconfig.json
 COPY shared/src shared/src

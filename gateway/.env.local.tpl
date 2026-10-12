@@ -9,7 +9,7 @@ PORT=7716
 # Gateway's own bearer (clients send this as `Authorization: Bearer <…>`).
 # Literal on purpose: localhost dev needs no real secret, and keeping it out of
 # 1Password lets `bun run dev` work on the headless mini (cache backend) without
-# seeding a prod-tier ref. Prod uses op://vps/image-gen-gateway/API_SECRET (deploy/.env.tpl).
+# seeding a prod-tier ref. Prod uses op://vps/image-gateway/API_SECRET (deploy/.env.tpl).
 API_SECRET=dev-local
 
 # Upstream OpenAI-compatible endpoint (the unified IU endpoint). Full base URL

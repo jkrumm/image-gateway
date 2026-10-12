@@ -10,7 +10,7 @@ import {
   type GenerateRequest,
   type ImageModel,
   type RequestQuality,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 
 export interface RouteResult {
   model: ImageModel
@@ -41,7 +41,7 @@ export function routeModel(req: {
 /**
  * Validate a requested size against a model's constraints. Delegates to the
  * shared rule — kept as a named export so routes don't reach past this
- * module's interface into `@image-gen/shared` directly.
+ * module's interface into `@image-gateway/shared` directly.
  */
 export function validateSize(model: ImageModel, size: string): string | null {
   return validateSizeForModel(model, size)

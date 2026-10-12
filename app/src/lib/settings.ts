@@ -6,30 +6,25 @@ const serviceConnectionSchema = z.object({
   baseUrl: z.string(),
   token: z.string(),
 })
-/** One bearer-authed HTTP service's connection details — the gateway, or the private
- * image-share layer. Both `gateway.ts` and `image-share.ts` take exactly this shape, not the
- * full `Settings` envelope, so neither needs to know the other service exists. */
+/** One bearer-authed HTTP service's connection details. `gateway.ts` takes exactly this shape,
+ * not the full `Settings` envelope. */
 export type ServiceConnection = z.infer<typeof serviceConnectionSchema>
 
 const settingsSchema = z.object({
   gateway: serviceConnectionSchema,
-  /** Optional — the private image-share layer (Share/Publish in the Library inspector). Its
-   * absence only disables delivery actions; the gateway is the one connection the app can't run
-   * without. */
-  imageShare: serviceConnectionSchema.optional(),
 })
 export type Settings = z.infer<typeof settingsSchema>
 
 const DEFAULT_SETTINGS: Settings = { gateway: { baseUrl: '', token: '' } }
 
 /**
- * v1 was a flat `{ baseUrl, token }` pair — a single, implicitly-gateway connection, no
- * image-share. v2 nests it under `gateway` and adds an optional `imageShare` connection.
- * Detected by shape, not a version field: the on-disk `settings.json` carries no envelope at
- * all (it's whatever `make configure` or a past `storeSettings()` wrote directly), so
+ * v1 was a flat `{ baseUrl, token }` pair — a single, implicitly-gateway connection. v2 nests it
+ * under `gateway`. Detected by shape, not a version field: the on-disk `settings.json` carries no
+ * envelope at all (it's whatever `make configure` or a past `storeSettings()` wrote directly), so
  * shape-sniffing is the only signal available there. Anything already `gateway`-shaped, or
  * unrecognized, passes through unchanged — `settingsSchema` downstream is the single source of
- * truth for whether the result is actually valid.
+ * truth for whether the result is actually valid. Unknown keys (a retired `imageShare`
+ * connection from an older file) are stripped by the schema parse, never an error.
  */
 function migrateSettingsShape(raw: unknown): unknown {
   if (typeof raw !== 'object' || raw === null) return raw
@@ -41,25 +36,10 @@ function migrateSettingsShape(raw: unknown): unknown {
   return record
 }
 
-/**
- * Parses raw persisted/on-disk data into `Settings`, tolerating a structurally invalid
- * `imageShare` (e.g. hand-edited with a missing `token` key). `imageShare` is optional
- * everywhere it's read, so a value that fails its own schema must be dropped rather than fail
- * the whole parse and take the gateway connection down with it.
- */
+/** Parses raw persisted/on-disk data into `Settings`; undefined when it has no valid gateway. */
 function safeParseSettings(raw: unknown): Settings | undefined {
-  const shaped = migrateSettingsShape(raw)
-  const parsed = settingsSchema.safeParse(shaped)
-  if (parsed.success) return parsed.data
-
-  if (typeof shaped !== 'object' || shaped === null || !('imageShare' in shaped)) {
-    return undefined
-  }
-
-  const withoutImageShare = { ...(shaped as Record<string, unknown>) }
-  delete withoutImageShare['imageShare']
-  const parsedWithoutImageShare = settingsSchema.safeParse(withoutImageShare)
-  return parsedWithoutImageShare.success ? parsedWithoutImageShare.data : undefined
+  const parsed = settingsSchema.safeParse(migrateSettingsShape(raw))
+  return parsed.success ? parsed.data : undefined
 }
 
 /**
@@ -100,9 +80,7 @@ export function isSettingsConfigured(connection: ServiceConnection | undefined):
 /**
  * Read the on-disk settings, if any. Returns undefined when the file is absent, malformed, or
  * the gateway connection isn't usable — a broken settings file must degrade to "not configured
- * yet" (the app then prompts) rather than throw on boot and leave a blank window. `imageShare`
- * carries no such gate: it's optional everywhere it's read, so a half-filled or absent
- * image-share connection never blocks hydrating the gateway connection that IS present.
+ * yet" (the app then prompts) rather than throw on boot and leave a blank window.
  */
 export async function loadStoredSettings(
   store: StudioStore = studioStore,

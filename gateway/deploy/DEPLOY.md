@@ -1,4 +1,4 @@
-# Deploying image-gen-gateway to the VPS
+# Deploying image-gateway to the VPS
 
 Ingress is **Tailscale-only** — a grey-cloud DNS-only A record (`image-gateway.<your-domain>` → the VPS
 Tailscale IP) routed to **Traefik**, _not_ through the Cloudflare Tunnel (same pattern as `argo`,
@@ -17,7 +17,7 @@ the suffix, `research` does not — so follow the disambiguation, not a conventi
 
 Create the gateway-specific secret (account `tkrumm`):
 
-- `op://vps/image-gen-gateway/API_SECRET` — generate a strong random bearer (the gateway's token).
+- `op://vps/image-gateway/API_SECRET` — generate a strong random bearer (the gateway's token).
 
 `OPENAI_BASE_URL` / `OPENAI_API_KEY` reuse the existing shared item (`op://common/anthropic/*`);
 `ARGO_API_SECRET` reuses `op://common/api/SECRET`.
@@ -25,21 +25,21 @@ Create the gateway-specific secret (account `tkrumm`):
 ## 2. Add the service to the vps repo
 
 ```bash
-mkdir -p ~/SourceRoot/vps/apps/image-gen-gateway
-cp deploy/compose.yml  ~/SourceRoot/vps/apps/image-gen-gateway/compose.yml
-cp deploy/.env.tpl     ~/SourceRoot/vps/apps/image-gen-gateway/.env.tpl
+mkdir -p ~/SourceRoot/vps/apps/image-gateway
+cp deploy/compose.yml  ~/SourceRoot/vps/apps/image-gateway/compose.yml
+cp deploy/.env.tpl     ~/SourceRoot/vps/apps/image-gateway/.env.tpl
 ```
 
 Add Makefile targets in the vps repo mirroring the `research-gateway-*` ones
-(`image-gen-gateway-up`, `-down`, `-env`, `-redeploy`, `-bootstrap-image`). The env target is:
+(`image-gateway-up`, `-down`, `-env`, `-redeploy`, `-bootstrap-image`). The env target is:
 
 ```make
-image-gen-gateway-env:
-	op --account tkrumm inject -i apps/image-gen-gateway/.env.tpl -o apps/image-gen-gateway/.env -f
-	chmod 644 apps/image-gen-gateway/.env
+image-gateway-env:
+	op --account tkrumm inject -i apps/image-gateway/.env.tpl -o apps/image-gateway/.env -f
+	chmod 644 apps/image-gateway/.env
 ```
 
-Run `make image-gen-gateway-env` to materialize the gitignored `.env`. Re-run after rotating any
+Run `make image-gateway-env` to materialize the gitignored `.env`. Re-run after rotating any
 secret.
 
 ## 3. Cloudflare DNS (Tailscale-only)
@@ -65,18 +65,18 @@ The Docker build context for `gateway/Dockerfile` is the **repo root** (monorepo
 depends on the `shared/` workspace package), so any build/deploy tooling must pass `context: .`
 and `dockerfile: gateway/Dockerfile`, as `.github/workflows/deploy.yml` does.
 
-1. Push the repo to `github.com/jkrumm/image-gen` (default branch `master`).
+1. Push the repo to `github.com/jkrumm/image-gateway` (default branch `master`).
 2. Seed the initial registry image so rollhook has a container to authorize against (mirror
-   argo's/research-gateway's `bootstrap-image.sh`), then `make image-gen-gateway-up` once on the
+   argo's/research-gateway's `bootstrap-image.sh`), then `make image-gateway-up` once on the
    VPS.
 3. Subsequent deploys: push to `master` (touching `gateway/**` or `shared/**`) → the `deploy.yml`
    workflow calls rollhook-action (OIDC) → zero-downtime rolling update. The
-   `rollhook.allowed_repos=jkrumm/image-gen` label on the running container authorizes it.
+   `rollhook.allowed_repos=jkrumm/image-gateway` label on the running container authorizes it.
 
 ## 5. Smoke test
 
 ```bash
-TOKEN=$(op read "op://vps/image-gen-gateway/API_SECRET" --account tkrumm)
+TOKEN=$(op read "op://vps/image-gateway/API_SECRET" --account tkrumm)
 BASE=https://image-gateway.<your-domain>
 
 curl -sS "$BASE/health"   # {"status":"ok"} — tailnet-only

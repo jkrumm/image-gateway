@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { computeCost } from './pricing.js'
-import type { Usage } from '@image-gen/shared'
+import type { Usage } from '@image-gateway/shared'
 
 describe('computeCost', () => {
   test('uses input_tokens_details text/image split when present', () => {

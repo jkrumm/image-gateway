@@ -1,5 +1,5 @@
 {
-  "name": "@image-gen/shared",
+  "name": "@image-gateway/shared",
   "version": "0.0.0",
   "private": true,
   "type": "module",

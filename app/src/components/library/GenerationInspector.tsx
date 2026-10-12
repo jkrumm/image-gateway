@@ -1,4 +1,4 @@
-import type { GenerationImageV2, Role } from '@image-gen/shared'
+import type { GenerationImageV2, Role } from '@image-gateway/shared'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import {
   Badge,
@@ -16,12 +16,9 @@ import { VX } from 'basalt-ui/tokens'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import { useEffect, useState } from 'react'
-import { cdnMarkdownEmbed } from '../../lib/image-share'
 import type { Recipe } from '../../lib/imaging/recipe'
 import { absolutePath, type LibraryEntry } from '../../lib/library'
 import type { GenerationMetadata } from '../../lib/metadata'
-import { findPublication } from '../../lib/publications'
-import type { ServiceConnection } from '../../lib/settings'
 import { DerivedSection } from './DerivedSection'
 import { LineagePanel } from './LineagePanel'
 import { PlanRecord } from './PlanRecord'
@@ -66,14 +63,6 @@ type GenerationInspectorProps = {
   savingRolesFor: string | null
   onRolesChange: (image: GenerationImageV2, roles: Role[]) => void
   onStarredChange: (image: GenerationImageV2, starred: boolean) => void
-
-  /** Undefined when Settings has no image-share connection configured — Share/Publish stay
-   * disabled with a hint rather than hidden entirely. */
-  imageShare: ServiceConnection | undefined
-  sharing: boolean
-  publishing: boolean
-  onShare: () => void
-  onPublish: () => void
 }
 
 /**
@@ -103,11 +92,6 @@ export function GenerationInspector({
   savingRolesFor,
   onRolesChange,
   onStarredChange,
-  imageShare,
-  sharing,
-  publishing,
-  onShare,
-  onPublish,
 }: GenerationInspectorProps) {
   const { metadata } = entry
   const [imageSrcs, setImageSrcs] = useState<string[]>([])
@@ -126,8 +110,6 @@ export function GenerationInspector({
       cancelled = true
     }
   }, [metadata.id, metadata.images])
-
-  const imageSharePublication = findPublication(metadata.publications, 'image-share')
 
   return (
     <Modal opened onClose={onClose} title="Generation" size={960}>
@@ -234,55 +216,6 @@ export function GenerationInspector({
               </Group>
             </Stack>
           ))}
-        </Stack>
-
-        <Stack gap="xs">
-          <Text size="sm" fw={500}>
-            Delivery
-          </Text>
-          <Group gap="xs" wrap="wrap">
-            <Button
-              size="xs"
-              variant="default"
-              loading={sharing}
-              disabled={imageShare === undefined}
-              onClick={onShare}
-            >
-              Share to image-share
-            </Button>
-            <Button
-              size="xs"
-              variant="default"
-              loading={publishing}
-              disabled={imageShare === undefined}
-              onClick={onPublish}
-            >
-              Publish to CDN
-            </Button>
-            {imageSharePublication?.cdn_url && (
-              <>
-                <CopyButton value={imageSharePublication.cdn_url}>
-                  {({ copied, copy }) => (
-                    <Button size="xs" variant="subtle" onClick={copy}>
-                      {copied ? 'Copied' : 'Copy URL'}
-                    </Button>
-                  )}
-                </CopyButton>
-                <CopyButton value={cdnMarkdownEmbed(imageSharePublication.cdn_url)}>
-                  {({ copied, copy }) => (
-                    <Button size="xs" variant="subtle" onClick={copy}>
-                      {copied ? 'Copied' : 'Copy markdown'}
-                    </Button>
-                  )}
-                </CopyButton>
-              </>
-            )}
-          </Group>
-          {imageShare === undefined && (
-            <Text size="xs" c="dimmed">
-              Add an image-share URL and token in Settings to share or publish this generation.
-            </Text>
-          )}
         </Stack>
 
         <PlanRecord enhance={metadata.enhance} />

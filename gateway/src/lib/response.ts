@@ -1,4 +1,4 @@
-import type { Cost, GenerateResponse, ImageModel, Usage } from '@image-gen/shared'
+import type { Cost, GenerateResponse, ImageModel, Usage } from '@image-gateway/shared'
 import { computeCost } from './pricing.js'
 import type { UpstreamResponse } from './upstream.js'
 

@@ -5,7 +5,7 @@ import {
   KNOWN_IMAGE_MODELS,
   MODEL_CAPABILITIES,
   generationParentSchema,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import { z } from 'zod'
 
 /**

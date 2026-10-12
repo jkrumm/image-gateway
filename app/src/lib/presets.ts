@@ -1,4 +1,4 @@
-import type { GenerateRequest } from '@image-gen/shared'
+import type { GenerateRequest } from '@image-gateway/shared'
 
 export type Preset = {
   id: string

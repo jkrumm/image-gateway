@@ -21,7 +21,7 @@ import {
   type PlanResponse,
   type PlanSettings,
   type VerbatimCheck,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import { env } from '../env.js'
 import { requestWithRetry } from './upstream.js'
 import { log } from './log.js'

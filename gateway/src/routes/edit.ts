@@ -7,7 +7,7 @@ import {
   editResponseSchema,
   errorResponseSchema,
   streamEventSchema,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import {
   routeModel,
   validateBackground,

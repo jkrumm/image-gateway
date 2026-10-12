@@ -10,7 +10,7 @@ process.env['OPENAI_API_KEY'] ??= 'test-key'
 process.env['ENHANCE_MODEL'] ??= 'gpt-6-luna'
 
 const { enhanceRoutes } = await import('./enhance.js')
-const { planResponseSchema, estimateCost } = await import('@image-gen/shared')
+const { planResponseSchema, estimateCost } = await import('@image-gateway/shared')
 
 function withMockedFetch(
   impl: (...args: Parameters<typeof fetch>) => Promise<Response>,

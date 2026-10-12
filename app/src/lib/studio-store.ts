@@ -13,7 +13,12 @@
  * `searches/` is reserved (docs/concept.md §6: "not built until roles+search demonstrably fall
  * short") — no IO for it here.
  */
-import { projectSchema, styleGuideSchema, type Project, type StyleGuide } from '@image-gen/shared'
+import {
+  projectSchema,
+  styleGuideSchema,
+  type Project,
+  type StyleGuide,
+} from '@image-gateway/shared'
 import {
   BaseDirectory,
   exists,

@@ -1,4 +1,4 @@
-import { ROLES, type GenerationImageV2, type Role } from '@image-gen/shared'
+import { ROLES, type GenerationImageV2, type Role } from '@image-gateway/shared'
 import { ActionIcon, Chip, Group, Tooltip } from '@mantine/core'
 
 type RolesEditorProps = {

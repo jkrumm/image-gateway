@@ -1,6 +1,6 @@
 # ImageGen (app)
 
-Tauri v2 macOS app — the primary client for the image-gen studio. Owns the entire generation
+Tauri v2 macOS app — the optional interactive studio for the image-gateway. Owns the entire generation
 library on local disk; the gateway holds no state.
 
 ## Prerequisites
@@ -37,7 +37,7 @@ notarized for distribution outside this machine.
 
 Open **Settings** (gear icon, top right) and enter:
 
-- **Gateway URL** — the image-gen gateway's Tailscale address (the gateway is tailnet-only;
+- **Gateway URL** — the image-gateway's Tailscale address (the gateway is tailnet-only;
   make sure Tailscale is connected)
 - **Bearer token** — the gateway's auth token
 

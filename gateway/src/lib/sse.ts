@@ -1,4 +1,4 @@
-import type { StreamEvent, Usage } from '@image-gen/shared'
+import type { StreamEvent, Usage } from '@image-gateway/shared'
 
 /**
  * Upstream SSE event shapes, live-probed against our own endpoint

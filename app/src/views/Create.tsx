@@ -21,7 +21,7 @@ import {
   type SeriesContextEntry,
   type SidecarEnhance,
   type StyleGuide,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import {
   Alert,
   Badge,
@@ -434,7 +434,7 @@ export function Create({ settings, createSeed, entries, onOpenSettings }: Create
     return (
       <EmptyState
         title="Connect your gateway"
-        description="Add the image-gen gateway URL and bearer token in Settings to start creating."
+        description="Add the image-gateway URL and bearer token in Settings to start creating."
         action={<Button onClick={onOpenSettings}>Open settings</Button>}
       />
     )

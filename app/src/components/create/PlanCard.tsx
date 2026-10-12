@@ -1,4 +1,4 @@
-import { INTENTS, type Intent, type PlanResponse, type PlanWarning } from '@image-gen/shared'
+import { INTENTS, type Intent, type PlanResponse, type PlanWarning } from '@image-gateway/shared'
 import {
   Alert,
   Badge,

@@ -3,7 +3,7 @@ import {
   generationMetadataV2Schema,
   generationParamsSchema,
   type GenerationParams,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import { z } from 'zod'
 import { recipeSchema } from './imaging/recipe'
 

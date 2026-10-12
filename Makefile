@@ -29,7 +29,7 @@ BUNDLE_ID := com.jkrumm.image-gen
 APP_LOG   := $(HOME)/Library/Logs/$(BUNDLE_ID)/imagegen.log
 
 help: ## Show this help (default target — a bare `make` runs it)
-	@awk 'BEGIN {FS = ":.*##"; printf "\nimage-gen — run \033[36mmake <target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nimage-gateway — run \033[36mmake <target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 	@echo ""
 
 ##@ Contract — the machine-facing interface (AGENTS.md ## Validate / ## Deploy / ## Verify & Monitor)
@@ -56,30 +56,21 @@ up: ## THE entrypoint: bring both halves to your working tree — build+install 
 	@$(MAKE) --no-print-directory gateway-status
 	@echo "✓ both halves match your working tree"
 
-configure: ## Seed ~/Pictures/ImageGen/.imagegen/settings.json from 1Password (gateway + image-share) so the app never asks for either token. Re-run after rotating one.
-	@BASE=$$($(call op_read,op://vps/image-gen-gateway/BASE_URL)); \
-	TOKEN=$$($(call op_read,op://vps/image-gen-gateway/API_SECRET)); \
+configure: ## Seed ~/Pictures/ImageGen/.imagegen/settings.json from 1Password (gateway URL + token) so the app never asks for them. Re-run after rotating the token.
+	@BASE=$$($(call op_read,op://vps/image-gateway/BASE_URL)); \
+	TOKEN=$$($(call op_read,op://vps/image-gateway/API_SECRET)); \
 	if [ -z "$$BASE" ] || [ -z "$$TOKEN" ]; then \
 	  echo "✗ could not read the gateway URL/token from 1Password."; \
 	  echo "  This machine is headless-by-default: plain 'op' blocks on a biometric prompt, so the"; \
 	  echo "  refs below need to be in dotfiles-private/headless.refs, then 'make secrets-seed':"; \
-	  echo "      op://vps/image-gen-gateway/BASE_URL"; \
-	  echo "      op://vps/image-gen-gateway/API_SECRET"; \
+	  echo "      op://vps/image-gateway/BASE_URL"; \
+	  echo "      op://vps/image-gateway/API_SECRET"; \
 	  echo "  (Or run 'op signin --account tkrumm' in this shell first, with someone present.)"; \
 	  exit 1; \
 	fi; \
-	SHARE_BASE=$$($(call op_read,op://homelab/image-share/BASE_URL)); \
-	SHARE_TOKEN=$$($(call op_read,op://homelab/image-share/API_SECRET)); \
 	mkdir -p "$(HOME)/Pictures/ImageGen/.imagegen"; \
 	umask 077; \
-	if [ -n "$$SHARE_BASE" ] && [ -n "$$SHARE_TOKEN" ]; then \
-	  printf '{\n  "gateway": { "baseUrl": "%s", "token": "%s" },\n  "imageShare": { "baseUrl": "%s", "token": "%s" }\n}\n' \
-	    "$$BASE" "$$TOKEN" "$$SHARE_BASE" "$$SHARE_TOKEN" > "$(HOME)/Pictures/ImageGen/.imagegen/settings.json"; \
-	else \
-	  echo "⚠ could not read the image-share URL/token from 1Password (op://homelab/image-share/{BASE_URL,API_SECRET})"; \
-	  echo "  seeding gateway only — Share/Publish will stay disabled in the app until you seed those refs and re-run this target."; \
-	  printf '{\n  "gateway": { "baseUrl": "%s", "token": "%s" }\n}\n' "$$BASE" "$$TOKEN" > "$(HOME)/Pictures/ImageGen/.imagegen/settings.json"; \
-	fi; \
+	printf '{\n  "gateway": { "baseUrl": "%s", "token": "%s" }\n}\n' "$$BASE" "$$TOKEN" > "$(HOME)/Pictures/ImageGen/.imagegen/settings.json"; \
 	chmod 600 "$(HOME)/Pictures/ImageGen/.imagegen/settings.json"; \
 	echo "✓ wrote ~/Pictures/ImageGen/.imagegen/settings.json (chmod 600) — restart the app to pick it up"
 
@@ -196,14 +187,14 @@ gateway-deploy: ## Deploy gateway/ + shared/ to the VPS via RollHook and wait fo
 	  git log origin/master..master --oneline -- gateway shared | sed 's/^/    /'; \
 	  exit 1; \
 	fi
-	gh workflow run deploy.yml --repo jkrumm/image-gen --ref master
+	gh workflow run deploy.yml --repo jkrumm/image-gateway --ref master
 	@printf "  waiting for the rollout… "
 	@sleep 5
 	@for i in $$(seq 1 60); do \
-	  STATUS=$$(gh run list --repo jkrumm/image-gen --limit 1 --json status,conclusion --jq '.[0].status + ":" + (.[0].conclusion // "")'); \
+	  STATUS=$$(gh run list --repo jkrumm/image-gateway --limit 1 --json status,conclusion --jq '.[0].status + ":" + (.[0].conclusion // "")'); \
 	  case "$$STATUS" in \
 	    completed:success) echo "ok"; break;; \
-	    completed:*) echo "FAILED"; echo "✗ deploy failed — 'gh run view --repo jkrumm/image-gen --log-failed'"; exit 1;; \
+	    completed:*) echo "FAILED"; echo "✗ deploy failed — 'gh run view --repo jkrumm/image-gateway --log-failed'"; exit 1;; \
 	  esac; \
 	  sleep 5; \
 	done
@@ -215,7 +206,7 @@ gateway-status: ## Is the deployed gateway healthy, and is it running the image 
 	@# the shell block below on purpose — that block is one backslash-continued command, so a
 	@# `#` inside it would comment out everything that follows.)
 	@printf "  verifying the deployed gateway matches your HEAD… "
-	@RUNNING=$$(ssh vps 'docker inspect --format "{{.Config.Image}}" $$(docker ps -q --filter "label=com.docker.compose.service=image-gen-gateway") 2>/dev/null' 2>/dev/null | sed 's/.*://'); \
+	@RUNNING=$$(ssh vps 'docker inspect --format "{{.Config.Image}}" $$(docker ps -q --filter "label=com.docker.compose.service=image-gateway") 2>/dev/null' 2>/dev/null | sed 's/.*://'); \
 	HEAD_SHA=$$(git rev-parse HEAD); \
 	if [ -z "$$RUNNING" ]; then \
 	  echo "UNKNOWN"; \
@@ -234,9 +225,9 @@ gateway-status: ## Is the deployed gateway healthy, and is it running the image 
 	@# hostname. Degrade rather than fail when the URL is unavailable: BASE_URL is a non-secret
 	@# coordinate that merely lives in 1P (the repo is public and must not hardcode the host), so
 	@# an unseeded cache is no reason to withhold the SHA check that just passed.
-	@BASE=$${IMAGE_GEN_BASE_URL:-$$($(call op_read,op://vps/image-gen-gateway/BASE_URL))}; \
+	@BASE=$${IMAGE_GATEWAY_BASE_URL:-$$($(call op_read,op://vps/image-gateway/BASE_URL))}; \
 	if [ -z "$$BASE" ]; then \
-	  echo "  ⚠ skipped the /health probe — no gateway URL available (set IMAGE_GEN_BASE_URL or seed op://vps/image-gen-gateway/BASE_URL)"; \
+	  echo "  ⚠ skipped the /health probe — no gateway URL available (set IMAGE_GATEWAY_BASE_URL or seed op://vps/image-gateway/BASE_URL)"; \
 	  exit 0; \
 	fi; \
 	printf "  probing %s/health… " "$$BASE"; \
@@ -244,18 +235,18 @@ gateway-status: ## Is the deployed gateway healthy, and is it running the image 
 	if [ "$$HEALTH" = '{"status":"ok"}' ]; then echo "ok"; else echo "UNHEALTHY"; echo "✗ returned: $$HEALTH"; exit 1; fi
 
 gateway-logs: ## Tail the deployed gateway's container logs (does not terminate — Ctrl-C to stop)
-	ssh vps 'docker logs -f $$(docker ps -q --filter "label=com.docker.compose.service=image-gen-gateway")'
+	ssh vps 'docker logs -f $$(docker ps -q --filter "label=com.docker.compose.service=image-gateway")'
 
 gateway-logs-bounded: ## Print the last 200 lines of the deployed gateway's logs, then exit (the `make logs` contract target)
-	ssh vps 'docker logs --tail 200 $$(docker ps -q --filter "label=com.docker.compose.service=image-gen-gateway")'
+	ssh vps 'docker logs --tail 200 $$(docker ps -q --filter "label=com.docker.compose.service=image-gateway")'
 
 gateway-smoke: ## Probe the deployed gateway: /health (unauthenticated) + an authenticated /enhance round trip.
-	@BASE=$${IMAGE_GEN_BASE_URL:-$$($(call op_read,op://vps/image-gen-gateway/BASE_URL))}; \
-	if [ -z "$$BASE" ]; then echo "✗ set IMAGE_GEN_BASE_URL=https://<host> or seed op://vps/image-gen-gateway/BASE_URL"; exit 1; fi; \
+	@BASE=$${IMAGE_GATEWAY_BASE_URL:-$$($(call op_read,op://vps/image-gateway/BASE_URL))}; \
+	if [ -z "$$BASE" ]; then echo "✗ set IMAGE_GATEWAY_BASE_URL=https://<host> or seed op://vps/image-gateway/BASE_URL"; exit 1; fi; \
 	echo "  GET $$BASE/health"; \
 	curl -sS --max-time 10 "$$BASE/health" || { echo "✗ unreachable — the gateway is Tailscale-only, so check the tailnet first"; exit 1; }; \
 	echo ""; \
-	TOKEN=$$($(call op_read,op://vps/image-gen-gateway/API_SECRET)); \
+	TOKEN=$$($(call op_read,op://vps/image-gateway/API_SECRET)); \
 	if [ -z "$$TOKEN" ]; then echo "⚠ no API_SECRET available — skipping the authenticated probe"; exit 0; fi; \
 	echo "  POST $$BASE/enhance"; \
 	curl -sS --max-time 60 -X POST "$$BASE/enhance" \

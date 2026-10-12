@@ -1,4 +1,4 @@
-import type { GenerationImageV2, Project, Role } from '@image-gen/shared'
+import type { GenerationImageV2, Project, Role } from '@image-gateway/shared'
 import { Group, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { error as logError } from '@tauri-apps/plugin-log'
@@ -11,7 +11,6 @@ import { FacetChips } from '../components/library/FacetChips'
 import { GenerationCard } from '../components/library/GenerationCard'
 import { GenerationInspector, type UseAsLoading } from '../components/library/GenerationInspector'
 import { LibrarySidebar } from '../components/library/LibrarySidebar'
-import { publishToImageShare, shortKeyFromCdnUrl, uploadToImageShare } from '../lib/image-share'
 import type { Recipe } from '../lib/imaging/recipe'
 import { buildLibraryIndex } from '../lib/library-index'
 import { filterLibraryEntries, type LibraryScope } from '../lib/library-filters'
@@ -23,7 +22,6 @@ import {
   type SaveGenerationRequest,
 } from '../lib/library'
 import type { GenerationImageMeta, GenerationMetadata } from '../lib/metadata'
-import { findPublication, withPublication } from '../lib/publications'
 import {
   buildPromoteRequest,
   buildRerunRequest,
@@ -34,7 +32,6 @@ import {
 } from '../lib/replay'
 import { withImageRoleAdded, withImageRoles, withImageStarred } from '../lib/roles'
 import { useQueue } from '../lib/queue'
-import { isSettingsConfigured, type Settings } from '../lib/settings'
 import { studioStore } from '../lib/studio-store'
 
 /** Maps a saved image's on-disk format back to a MIME type for constructing a `File`. */
@@ -68,7 +65,6 @@ async function loadEditFiles(
 }
 
 type LibraryProps = {
-  settings: Settings
   entries: LibraryEntry[]
   totalCost: number
   onSeedCreate: (seed: CreateSeed) => void
@@ -79,10 +75,6 @@ type LibraryProps = {
 /** `{ id, op }` of the direct-enqueue job currently in flight, so only that generation's Re-run/
  * Promote button shows a spinner. */
 type BusyOp = { id: string; op: 'rerun' | 'promote' }
-
-/** `{ id, op }` of the in-flight Share/Publish call, so only that generation's button shows a
- * spinner — mirrors `BusyOp` above. */
-type DeliveryOp = { id: string; op: 'share' | 'publish' }
 
 function toggleInSet(set: ReadonlySet<string>, value: string): Set<string> {
   const next = new Set(set)
@@ -104,7 +96,6 @@ function notifyCoercions(op: string, coercions: ReplayCoercion[]): void {
 }
 
 export function Library({
-  settings,
   entries,
   totalCost,
   onSeedCreate,
@@ -124,7 +115,6 @@ export function Library({
   const [refiningKey, setRefiningKey] = useState<string | null>(null)
   const [useAsLoading, setUseAsLoading] = useState<UseAsLoading | null>(null)
   const [savingRolesFor, setSavingRolesFor] = useState<string | null>(null)
-  const [deliveryOp, setDeliveryOp] = useState<DeliveryOp | null>(null)
 
   useEffect(() => {
     void studioStore.listProjects().then(setProjects)
@@ -291,92 +281,6 @@ export function Library({
     }
   }
 
-  /** Shares a generation's first output image to image-share, recording the returned numeric id
-   * as a `publications[]` entry. Only the first output image — a generation's other `n>1`
-   * outputs are not shared by this action. */
-  async function handleShare(metadata: GenerationMetadata): Promise<void> {
-    const imageShare = settings.imageShare
-    if (!imageShare) return
-    const image = metadata.images[0]
-    if (!image) return
-
-    setDeliveryOp({ id: metadata.id, op: 'share' })
-    try {
-      const file = await loadFile(metadata.id, image)
-      const result = await uploadToImageShare(imageShare, file)
-      await updateGenerationMetadata(metadata.id, {
-        publications: withPublication(metadata.publications, {
-          target: 'image-share',
-          image_share_id: result.id,
-          published_at: new Date().toISOString(),
-        }),
-      })
-      onLibraryChange()
-      notifications.show({
-        color: 'green',
-        title: 'Shared to image-share',
-        message: image.filename,
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      void logError(`failed to share to image-share: ${message}`)
-      notifications.show({ color: 'red', title: 'Could not share', message })
-    } finally {
-      setDeliveryOp(null)
-    }
-  }
-
-  /** Publishes a generation to the public CDN under the opaque `gen/` prefix. Shares first if it
-   * hasn't been shared yet; re-shows the existing CDN URL instead of re-uploading if it has
-   * already been published (the server also dedups republish under the same prefix, but this
-   * avoids the round trip and a wasted upload). */
-  async function handlePublish(metadata: GenerationMetadata): Promise<void> {
-    const imageShare = settings.imageShare
-    if (!imageShare) return
-
-    const existing = findPublication(metadata.publications, 'image-share')
-    if (existing?.cdn_url) {
-      notifications.show({ color: 'blue', title: 'Already published', message: existing.cdn_url })
-      return
-    }
-
-    setDeliveryOp({ id: metadata.id, op: 'publish' })
-    try {
-      let imageShareId = existing?.image_share_id
-      if (imageShareId === undefined) {
-        const image = metadata.images[0]
-        if (!image) throw new Error('No output image to publish')
-        const file = await loadFile(metadata.id, image)
-        const uploadResult = await uploadToImageShare(imageShare, file)
-        imageShareId = uploadResult.id
-      }
-
-      const publishResult = await publishToImageShare(imageShare, [imageShareId], 'gen')
-      const published = publishResult.published.find((entry) => entry.id === imageShareId)
-      const skipped = publishResult.skipped.find((entry) => entry.id === imageShareId)
-      const cdnUrl = published?.cdnUrl ?? skipped?.cdnUrl
-      if (!cdnUrl) throw new Error('image-share did not return a CDN URL')
-
-      await updateGenerationMetadata(metadata.id, {
-        publications: withPublication(metadata.publications, {
-          target: 'image-share',
-          image_share_id: imageShareId,
-          published_key: shortKeyFromCdnUrl(cdnUrl),
-          cdn_url: cdnUrl,
-          published_at: new Date().toISOString(),
-        }),
-      })
-      onLibraryChange()
-      notifications.show({ color: 'green', title: 'Published to CDN', message: cdnUrl })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      void logError(`failed to publish to CDN: ${message}`)
-      notifications.show({ color: 'red', title: 'Could not publish', message })
-    } finally {
-      setDeliveryOp(null)
-    }
-  }
-
   async function openInRefine(
     metadata: GenerationMetadata,
     key: string,
@@ -499,11 +403,6 @@ export function Library({
           onStarredChange={(image, starred) =>
             void handleStarredChange(selected.metadata, image, starred)
           }
-          imageShare={isSettingsConfigured(settings.imageShare) ? settings.imageShare : undefined}
-          sharing={deliveryOp?.id === selected.metadata.id && deliveryOp.op === 'share'}
-          publishing={deliveryOp?.id === selected.metadata.id && deliveryOp.op === 'publish'}
-          onShare={() => void handleShare(selected.metadata)}
-          onPublish={() => void handlePublish(selected.metadata)}
         />
       )}
     </Group>

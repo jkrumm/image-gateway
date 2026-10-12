@@ -3,7 +3,7 @@
  * `library.ts#updateGenerationMetadata` does the actual disk write; kept separate so the decision
  * logic (which image, which roles/starred) is unit-testable without a Tauri runtime.
  */
-import type { GenerationImageV2, Role } from '@image-gen/shared'
+import type { GenerationImageV2, Role } from '@image-gateway/shared'
 
 /** Returns a copy of `images` with the image at `filename` given exactly `roles` (replaces, does
  * not merge — the roles editor is a multi-select of the closed vocabulary, so it always submits

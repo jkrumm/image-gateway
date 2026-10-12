@@ -47,9 +47,10 @@ export type GenerationKind = (typeof GENERATION_KINDS)[number]
 export const MODERATION_STAGES = ['input', 'output'] as const
 export type ModerationStage = (typeof MODERATION_STAGES)[number]
 
-/** Delivery targets a generation can be shared/published to. Currently just the private
- * image-share layer (PRD.md non-goals: the one delivery carve-out) — HTTP to image-share only,
- * never a generic multi-target adapter. */
+/** Delivery targets recorded in sidecars. Read-path only: the image-share integration was
+ * retired, so nothing writes `publications` any more, but existing sidecars keep parsing (and
+ * keep the field through a metadata patch round-trip). Never shrink — see the retired-model
+ * rule in AGENTS.md. */
 export const PUBLICATION_TARGETS = ['image-share'] as const
 export type PublicationTarget = (typeof PUBLICATION_TARGETS)[number]
 
@@ -102,11 +103,8 @@ export const generationParentSchema = z.object({
 export type GenerationParent = z.infer<typeof generationParentSchema>
 
 /**
- * One delivery record — the generation has been shared and/or published to `target`.
- * `image_share_id` is set as soon as the file lands in image-share's ingest path;
- * `published_key`/`cdn_url` are added only once `/api/publish` has actually run. Mirrors
- * `GenerationDerivative`'s additive-optional shape: old sidecars (recorded before this feature
- * existed) simply have no `publications` key and keep parsing.
+ * One historical delivery record (retired image-share integration; read-only). `image_share_id`
+ * was set when the file landed in image-share; `published_key`/`cdn_url` only after publishing.
  */
 export const generationPublicationSchema = z.object({
   target: z.enum(PUBLICATION_TARGETS),
@@ -188,8 +186,8 @@ export const generationMetadataV2Schema = z.object({
   style_fragment_used: z.string().optional(),
   enhance: sidecarEnhanceSchema.optional(),
   moderation_outcome: moderationOutcomeSchema.optional(),
-  /** Delivery records (share/publish to image-share). Additive-optional — absent on every
-   * sidecar recorded before this feature existed. */
+  /** Historical delivery records from the retired image-share integration. Parsed and preserved,
+   * never written or used. */
   publications: z.array(generationPublicationSchema).optional(),
 })
 export type GenerationMetadataV2 = z.infer<typeof generationMetadataV2Schema>

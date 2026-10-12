@@ -29,19 +29,19 @@ function fakeStore(initial?: unknown): StudioStore & { written: unknown[] } {
 }
 
 const GATEWAY = { baseUrl: 'https://image-gateway.example.com', token: 'secret-token' }
-const IMAGE_SHARE = { baseUrl: 'https://image-share.example.com', token: 'share-token' }
 const VALID = { gateway: GATEWAY }
-const VALID_WITH_IMAGE_SHARE = { gateway: GATEWAY, imageShare: IMAGE_SHARE }
 
 describe('loadStoredSettings', () => {
   test('returns a fully configured gateway-only pair', async () => {
     expect(await loadStoredSettings(fakeStore(VALID))).toEqual(VALID)
   })
 
-  test('returns the imageShare connection too when present', async () => {
-    expect(await loadStoredSettings(fakeStore(VALID_WITH_IMAGE_SHARE))).toEqual(
-      VALID_WITH_IMAGE_SHARE,
-    )
+  test('ignores a retired imageShare key left in an older file', async () => {
+    expect(
+      await loadStoredSettings(
+        fakeStore({ gateway: GATEWAY, imageShare: { baseUrl: 'https://x', token: 't' } }),
+      ),
+    ).toEqual(VALID)
   })
 
   test('returns undefined when the file is absent', async () => {
@@ -63,9 +63,9 @@ describe('loadStoredSettings', () => {
     ).toBeUndefined()
   })
 
-  test('drops a structurally invalid imageShare (missing token key) but keeps the gateway', async () => {
+  test('a structurally invalid retired imageShare (missing token key) never fails the parse', async () => {
     // A hand-edited file like `{"gateway":{...},"imageShare":{"baseUrl":"x"}}` must not lose the
-    // gateway connection just because imageShare fails its own schema.
+    // gateway connection just because of the retired key.
     expect(
       await loadStoredSettings(fakeStore({ gateway: GATEWAY, imageShare: { baseUrl: 'x' } })),
     ).toEqual(VALID)
@@ -100,12 +100,6 @@ describe('storeSettings', () => {
     await storeSettings(VALID, store)
     expect(store.written).toEqual([VALID])
     expect(await loadStoredSettings(store)).toEqual(VALID)
-  })
-
-  test('round-trips gateway + imageShare through the store', async () => {
-    const store = fakeStore()
-    await storeSettings(VALID_WITH_IMAGE_SHARE, store)
-    expect(await loadStoredSettings(store)).toEqual(VALID_WITH_IMAGE_SHARE)
   })
 
   test('rejects a malformed pair rather than writing it', async () => {

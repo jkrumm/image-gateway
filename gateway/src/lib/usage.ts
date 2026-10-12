@@ -1,5 +1,5 @@
 import { env } from '../env.js'
-import type { Cost, Usage } from '@image-gen/shared'
+import type { Cost, Usage } from '@image-gateway/shared'
 import { log } from './log.js'
 
 /**
@@ -31,7 +31,7 @@ async function postRecord(args: {
   try {
     const now = new Date().toISOString()
     const record = {
-      source: 'image-gen-gateway',
+      source: 'image-gateway',
       source_id: args.requestId,
       grain: 'request',
       ts: now,
@@ -43,7 +43,7 @@ async function postRecord(args: {
       // dashboard filters workspace with an `IN (...)` list, which never matches
       // NULL. A service that omits these disappears from every chart the moment
       // the Private/Work filter is touched, so both are declared explicitly.
-      project: 'image-gen',
+      project: 'image-gateway',
       workspace: 'private',
       sub_tool: args.subTool,
       machine: env.MACHINE,

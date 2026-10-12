@@ -1,4 +1,4 @@
-import type { GenerateRequestInput, GenerationParent } from '@image-gen/shared'
+import type { GenerateRequestInput, GenerationParent } from '@image-gateway/shared'
 import { ActionIcon, Group, ScrollArea, SegmentedControl, Stack, Text, Title } from '@mantine/core'
 import { EmptyState } from 'basalt-ui'
 import { money } from 'basalt-ui/format'
@@ -152,7 +152,6 @@ export function App() {
         <Activity mode={view === 'library' ? 'visible' : 'hidden'}>
           <ScrollArea style={{ flex: 1 }} scrollbars="y">
             <Library
-              settings={settings}
               entries={entries}
               totalCost={totalCost}
               onSeedCreate={seedCreate}

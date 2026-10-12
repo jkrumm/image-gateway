@@ -145,7 +145,7 @@ export function RefineCanvas({
 
   return (
     <Box
-      className={mode === 'checkerboard' ? 'image-gen-checkerboard' : undefined}
+      className={mode === 'checkerboard' ? 'image-gateway-checkerboard' : undefined}
       style={wrapperStyle}
     >
       {displayImage ? (

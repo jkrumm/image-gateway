@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { GenerationImageV2 } from '@image-gen/shared'
+import type { GenerationImageV2 } from '@image-gateway/shared'
 import { withImageRoleAdded, withImageRoles, withImageStarred } from './roles'
 
 const images: GenerationImageV2[] = [

@@ -1,4 +1,4 @@
-# image-gen — Design
+# image-gateway — Design
 
 > Managed by basalt-ui — run `basalt-ui doctor` for the version. This is a **thin** instantiation — it records this
 > app's **deltas only** on top of the shipped `basalt-*` rules. The universal law (earned color,
@@ -11,7 +11,7 @@
 
 This file's deltas win, then the shipped rules, then any skill:
 
-1. **This file** (`image-gen` DESIGN.md) — app-specific deltas. Highest authority.
+1. **This file** (`image-gateway` DESIGN.md) — app-specific deltas. Highest authority.
 2. **`basalt-*` rules** (`.claude/rules/basalt-*.md`) — the shipped law and its enforcement.
 3. **Skills** (`/basalt:design`, `/basalt:charts`, `/frontend-design`, …) — generic method, lowest.
 
@@ -20,7 +20,7 @@ law, the law wins.
 
 ## Identity
 
-image-gen inherits the basalt-ui identity verbatim: modern zinc surfaces, one earned saturated
+image-gateway inherits the basalt-ui identity verbatim: modern zinc surfaces, one earned saturated
 sky-blue accent, the `shadow-card` / `shadow-raised` / `shadow-overlay` depth split,
 dense-by-default spacing, and the three-font system. The
 law itself — every hex, role split, and enforcement rule — lives in the `basalt-tokens` and

@@ -17,7 +17,7 @@ import { readFile } from '@tauri-apps/plugin-fs'
 import { EmptyState } from 'basalt-ui'
 import { CONTAINER_KEYS } from 'basalt-ui/tokens'
 import { useEffect, useState } from 'react'
-import type { Role } from '@image-gen/shared'
+import type { Role } from '@image-gateway/shared'
 import { absolutePath, type LibraryEntry } from '../../lib/library'
 
 /** Maps a saved image's on-disk format back to a MIME type for constructing a `File`. */

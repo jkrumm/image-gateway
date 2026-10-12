@@ -4,7 +4,7 @@ import {
   planRequestSchema,
   planResponseSchema,
   type Usage,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import { env } from '../env.js'
 import { planFromRequest, PlanUpstreamError, type ChatCompletionUsage } from '../lib/enhance.js'
 import { computeCost } from '../lib/pricing.js'

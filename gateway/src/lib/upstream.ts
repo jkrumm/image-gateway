@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { env } from '../env.js'
-import type { EditRequest, GenerateRequest, ImageModel, Usage } from '@image-gen/shared'
+import type { EditRequest, GenerateRequest, ImageModel, Usage } from '@image-gateway/shared'
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504])
 const RETRY_ATTEMPTS = 3

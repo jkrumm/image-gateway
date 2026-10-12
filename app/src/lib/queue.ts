@@ -1,4 +1,4 @@
-import type { EditResponse, GenerateResponse } from '@image-gen/shared'
+import type { EditResponse, GenerateResponse } from '@image-gateway/shared'
 import { notifications } from '@mantine/notifications'
 import { error as logError } from '@tauri-apps/plugin-log'
 import {

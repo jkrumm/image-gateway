@@ -1,4 +1,4 @@
-import type { Cost, KnownImageModel, Usage } from '@image-gen/shared'
+import type { Cost, KnownImageModel, Usage } from '@image-gateway/shared'
 
 interface Rate {
   text_in: number

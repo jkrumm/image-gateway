@@ -29,7 +29,7 @@ import {
   type ImageModel,
   type KnownImageModel,
   type RequestQuality,
-} from '@image-gen/shared'
+} from '@image-gateway/shared'
 import type { GenerationMetadata } from './metadata'
 
 /** The full request-field bag reconstructable from a saved generation's sidecar — a superset

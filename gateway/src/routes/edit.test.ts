@@ -6,7 +6,7 @@ process.env['OPENAI_BASE_URL'] ??= 'http://localhost:1'
 process.env['OPENAI_API_KEY'] ??= 'test-key'
 
 const { editRoutes } = await import('./edit.js')
-const { generateResponseSchema } = await import('@image-gen/shared')
+const { generateResponseSchema } = await import('@image-gateway/shared')
 
 // 1x1 PNG, base64-encoded, so magic-byte validation passes.
 const PNG_B64 =

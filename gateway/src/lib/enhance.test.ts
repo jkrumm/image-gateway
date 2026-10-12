@@ -18,7 +18,7 @@ const {
   checkVerbatim,
   composeFinalPrompt,
 } = await import('./enhance.js')
-const { PLAYBOOK } = await import('@image-gen/shared')
+const { PLAYBOOK } = await import('@image-gateway/shared')
 
 describe('intentPlaybookKey', () => {
   test('maps icon -> icons', () => {

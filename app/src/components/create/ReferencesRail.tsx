@@ -1,4 +1,4 @@
-import { EDIT_LIMITS, INPUT_IMAGE_MIME_TYPES } from '@image-gen/shared'
+import { EDIT_LIMITS, INPUT_IMAGE_MIME_TYPES } from '@image-gateway/shared'
 import {
   ActionIcon,
   Badge,

@@ -9,7 +9,7 @@
  * Not wired into `App.tsx` — that is the Create/Library surfaces' job (G4/G5). This module only
  * exports a ready-to-consume `buildLibraryIndex()`.
  */
-import type { GenerationKind, Role } from '@image-gen/shared'
+import type { GenerationKind, Role } from '@image-gateway/shared'
 import type { GenerationMetadata } from './metadata'
 
 /** One distinct facet value and how many entries carry it, sorted by count desc then value asc —
