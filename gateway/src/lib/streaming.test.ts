@@ -118,3 +118,24 @@ describe('streamImageResponse', () => {
     expect(events[0]).toMatchObject({ type: 'error' })
   })
 })
+
+describe('streamImageResponse — upstream error frames', () => {
+  test("surfaces an upstream `error` frame's message instead of the generic no-completed error", async () => {
+    const partial =
+      'event: image_generation.partial_image\ndata: {"b64_json":"AAA=","partial_image_index":0,"output_format":"png"}'
+    const error =
+      'event: error\ndata: {"type":"error","error":{"message":"Your request was rejected by the safety system.","code":"moderation_blocked"}}'
+    const res = sseResponse(`${partial}\n\n${error}\n\n`)
+
+    const events = []
+    for await (const event of streamImageResponse(() => Promise.resolve(res), baseContext)) {
+      events.push(event)
+    }
+
+    expect(events).toHaveLength(2)
+    expect(events[1]).toEqual({
+      type: 'error',
+      error: { message: 'Your request was rejected by the safety system.', type: 'upstream_error' },
+    })
+  })
+})

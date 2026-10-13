@@ -175,7 +175,7 @@ export const generateRoutes = new Elysia().post(
       tags: ['Images'],
       summary: 'Generate images',
       description:
-        "Generates one or more images via the upstream gpt-image model family. Validates the requested size and background against the resolved model's capabilities (a transparent background is rejected with a 400 — no generatable model has an alpha channel), calls upstream, and returns base64 images with usage/cost telemetry. When `partial_images > 0`, responds with a `text/event-stream` of `StreamEvent` frames (`partial_image`* → exactly one `completed` or `error`) instead of the JSON envelope documented here.",
+        'Generates one or more images via the upstream gpt-image model family. Validates the requested size and background against the resolved model\'s capabilities (`background: "transparent"` needs `png` or `webp` output — `jpeg` is rejected with a 400), calls upstream, and returns base64 images with usage/cost telemetry. When `partial_images > 0`, responds with a `text/event-stream` of `StreamEvent` frames (`partial_image`* → exactly one `completed` or `error`) instead of the JSON envelope documented here.',
       security: [{ BearerAuth: [] }],
     },
   },

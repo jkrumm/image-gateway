@@ -39,6 +39,12 @@ function isUpstreamEvent(
   return event === `image_generation.${suffix}` || event === `image_edit.${suffix}`
 }
 
+function upstreamErrorMessage(data: unknown): string {
+  const error = (data as { error?: { message?: unknown } } | null)?.error
+  if (typeof error?.message === 'string') return error.message
+  return `upstream stream error: ${JSON.stringify(data).slice(0, 300)}`
+}
+
 /**
  * Drive one streaming upstream request (`stream: true` + `partial_images`) to
  * completion, re-emitting our own wire `StreamEvent`s. Always ends with
@@ -87,6 +93,15 @@ export async function* streamImageResponse(
       if (isUpstreamEvent(frame.event, 'partial_image')) {
         yield mapPartialImageFrame(frame.data as UpstreamPartialImageData, context.outputFormat)
         continue
+      }
+
+      // A mid-stream failure (e.g. an output-stage moderation block) arrives as
+      // an `error` frame. Surface its message rather than letting the loop run
+      // dry into the generic "ended without a completed event".
+      if (frame.event === 'error' || frame.event.endsWith('.error')) {
+        log('stream.upstream_error_frame', { event: frame.event })
+        yield fail(new Error(upstreamErrorMessage(frame.data)))
+        return
       }
 
       if (isUpstreamEvent(frame.event, 'completed')) {

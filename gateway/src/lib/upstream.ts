@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { env } from '../env.js'
+import { IMAGE_MODELS } from '@image-gateway/shared'
 import type { EditRequest, GenerateRequest, ImageModel, Usage } from '@image-gateway/shared'
+import { log } from './log.js'
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504])
 const RETRY_ATTEMPTS = 3
@@ -220,6 +222,11 @@ export async function requestWithRetry(
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err))
       if (i < RETRY_ATTEMPTS - 1) {
+        log('upstream.retry', {
+          url: new URL(url).pathname,
+          attempt: i + 1,
+          error: lastErr.message,
+        })
         await Bun.sleep(500 * 3 ** i)
         continue
       }
@@ -231,12 +238,18 @@ export async function requestWithRetry(
     const text = await res.text().catch(() => '')
     if (res.status === 410) {
       throw new Error(
-        `Model deprecated (410). Use a current model (gpt-image-{1,1-mini,1.5,2}). Detail: ${text.slice(0, 200)}`,
+        `Model deprecated (410). Use a current model (${IMAGE_MODELS.join(', ')}). Detail: ${text.slice(0, 200)}`,
       )
     }
     const isWrappedUserError = isWrappedUserErrorBody(text)
     if (RETRYABLE_STATUS.has(res.status) && !isWrappedUserError && i < RETRY_ATTEMPTS - 1) {
       lastErr = new Error(`Upstream ${res.status}: ${text.slice(0, 200)}`)
+      log('upstream.retry', {
+        url: new URL(url).pathname,
+        attempt: i + 1,
+        status: res.status,
+        error: text.slice(0, 200),
+      })
       await Bun.sleep(500 * 3 ** i)
       continue
     }

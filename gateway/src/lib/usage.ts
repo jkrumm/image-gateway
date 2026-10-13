@@ -12,8 +12,12 @@ const EMPTY_COST: Cost = { usd: null, source: 'none' }
 const ZERO_USAGE: Usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
 
 /**
- * Fire-and-forget telemetry POST to argo. Strict no-op when the env vars are
- * unset; failures are logged, never thrown, and never block the caller.
+ * The one per-request outcome sink: every finished generate/edit/enhance call
+ * (success or upstream failure, streamed or not) passes through here, so it
+ * writes the `request.done` log line — `make logs` otherwise shows nothing for
+ * a healthy gateway — then fire-and-forgets the record to argo. The argo POST
+ * is a strict no-op when its env vars are unset; failures are logged, never
+ * thrown, and never block the caller.
  */
 async function postRecord(args: {
   requestId: string
@@ -24,6 +28,16 @@ async function postRecord(args: {
   durationMs: number
   outcome: 'ok' | 'error'
 }): Promise<void> {
+  log('request.done', {
+    requestId: args.requestId,
+    subTool: args.subTool,
+    model: args.model,
+    outcome: args.outcome,
+    durationMs: args.durationMs,
+    costUsd: args.cost.usd,
+    outputTokens: args.usage.output_tokens,
+  })
+
   if (!env.ARGO_USAGE_URL || !env.ARGO_API_SECRET) return
   const usageUrl = env.ARGO_USAGE_URL
   const apiSecret = env.ARGO_API_SECRET
