@@ -24,7 +24,7 @@ Transparency-capable fallback (`gpt-image-1.5`) and cheap tier (`gpt-image-1-min
 
 ## Prior art to reuse
 
-`sideclaw/server/lib/iu-openai.ts` already implements `generateImage()` against this endpoint: POSTs `/images/generations` (default model `gpt-image-2`), validates PNG magic bytes, normalizes usage, logs to the usage-tracker NDJSON sink, and fails fast on 410 (retired model) naming the current gpt-image lineup. Reuse these patterns (retry set, 410 handling, magic-byte check, usage sink) in the gateway.
+`agent-gateway/server/lib/iu-openai.ts` already implements `generateImage()` against this endpoint: POSTs `/images/generations` (default model `gpt-image-2`), validates PNG magic bytes, normalizes usage, logs to the usage-tracker NDJSON sink, and fails fast on 410 (retired model) naming the current gpt-image lineup. Reuse these patterns (retry set, 410 handling, magic-byte check, usage sink) in the gateway.
 
 ## Round 2 — capability probe (2026-07-16)
 
