@@ -173,3 +173,20 @@ Consequences: recraft is the default (cheaper, faster, keeps resolution, tuned f
 **ICNS container** (verified by hexdumping a system .icns): 4-byte magic `icns` + big-endian u32 total file length, then chunks of 4-byte OSType + big-endian u32 chunk length (including the 8-byte chunk header) + raw PNG bytes. PNG OSTypes: `icp4`=16, `icp5`=32, `ic11`=32 (16@2x), `ic12`=64 (32@2x), `ic07`=128, `ic13`=256 (128@2x), `ic08`=256, `ic14`=512 (256@2x), `ic09`=512, `ic10`=1024 (512@2x). The higher codes (ic09-ic14) are from secondary sources; `icon-containers.test.ts` writes the file and round-trips it through `iconutil -c iconset` (macOS only), confirming all 10 iconset files at the expected pixel sizes.
 
 **ICO with PNG frames**: little-endian ICONDIR (reserved u16=0, type u16=1, count u16), N x 16-byte ICONDIRENTRY (width u8, height u8 [0 means 256], colorCount u8=0, reserved u8=0, planes u16=1, bitCount u16=32, bytesInRes u32, imageOffset u32), then the PNG bytes verbatim. Frames 16, 32, 48.
+
+### Upscale and vectorize for `/icons` (probed 2026-10-13, same proxy and key)
+
+recraft's cutout and vectorize both reject inputs under 256 px, so small masters must be upscaled first. Same call shape as above (`POST {base}/models/{owner}/{name}/predictions`, `Prefer: wait`, official models, no version hash).
+
+| Fact | `nightmareai/real-esrgan` | `recraft-ai/recraft-crisp-upscale` | `recraft-ai/recraft-vectorize` |
+|-|-|-|-|
+| Input | `image` (data URI), `scale` (0-10, default 4), `face_enhance: false` | `image` | `image` only |
+| Price | $0.002/run | not costed (rejected) | $0.01/run |
+| Latency | 2-10 s | - | ~8 s |
+| Limits | max recommended input ~1440p | - | <=5 MB, <=16 MP, sides 256-4096 px (same as the recraft cutout) |
+| Output | **RGBA PNG, alpha preserved** (128px RGBA in -> 512px RGBA out, transparent area intact) | **flattens transparency to white, returns RGB WebP** | one URL to an `.svg` on replicate.delivery |
+| Verdict | used (`UPSCALE_MODEL`) | **rejected** - destroys the alpha channel | used (`VECTORIZE_MODEL`) |
+
+**Vectorize output shape.** The root looks like `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="display: block;" viewBox="0 0 2048 2048" width="1254" height="1254" preserveAspectRatio="none">`, followed by `<path transform="translate(0,0)" fill="rgb(...)" d="..."/>` elements. There is **no background path** and transparency is kept. The fixed `width`/`height`/`style`/`preserveAspectRatio` and the no-op `translate(0,0)` are stripped before svgo (`viewBox` is kept so the icon scales).
+
+**Size depends entirely on the art.** A flat leaf icon came back as 2 paths, 3.5 KB. A lighthouse with a soft light beam came back as 66 paths, 61 KB, with the beam turned into stepped bands. Hence the 64 KB `SVG_MAX_BYTES` cap in `/icons`: gradient or photographic art does not vectorize into a good favicon, and since browsers prefer an SVG icon over the raster ones, an oversized SVG is omitted rather than shipped.

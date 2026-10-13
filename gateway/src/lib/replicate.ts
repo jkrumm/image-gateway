@@ -1,11 +1,11 @@
 import sharp from 'sharp'
 import { env } from '../env.js'
-import type { CutoutModel } from '@image-gateway/shared'
+import { UPSCALE_MODEL, VECTORIZE_MODEL, type CutoutModel } from '@image-gateway/shared'
 import { log } from './log.js'
 import { magicBytesValid, requestWithRetry } from './upstream.js'
 
 /**
- * Replicate lane: background removal through the IU proxy's `/replicate/v1` route (same bearer as
+ * Replicate lane: background removal, upscaling and vectorizing through the IU proxy's `/replicate/v1` route (same bearer as
  * the OpenAI upstream). The flow is "create prediction with `Prefer: wait`, poll only if it is
  * still running, fetch the `replicate.delivery` output". Mirrors audio-gateway's replicate-tts.ts.
  * This module owns ALL Replicate I/O.
@@ -113,6 +113,7 @@ async function pollPrediction(id: string, pollIntervalMs: number): Promise<Predi
   throw new ReplicateError(`Replicate prediction ${id} timed out after ${POLL_DEADLINE_MS}ms`)
 }
 
+/** The raw bytes behind a succeeded prediction's single output URL (delivery host enforced). */
 async function fetchDelivery(prediction: Prediction): Promise<Buffer> {
   const url = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
   if (!url) throw new ReplicateError('Replicate prediction succeeded with no output URL')
@@ -121,25 +122,24 @@ async function fetchDelivery(prediction: Prediction): Promise<Buffer> {
   }
   const res = await fetch(url, { signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS) })
   if (!res.ok) throw new ReplicateError(`Failed to fetch Replicate output (${res.status})`)
-  const bytes = Buffer.from(await res.arrayBuffer())
-  if (magicBytesValid(bytes, 'png')) return bytes
-  // recraft delivers RGBA WebP, not PNG (live-probed 2026-10-13); bria delivers PNG. Normalize so
-  // every caller gets the PNG this module promises.
-  if (magicBytesValid(bytes, 'webp')) return sharp(bytes).png().toBuffer()
-  throw new ReplicateError('Replicate output is neither PNG nor WebP (bad magic bytes)')
+  return Buffer.from(await res.arrayBuffer())
+}
+
+interface RunOptions {
+  pollIntervalMs?: number
 }
 
 /**
- * Remove the background of a PNG with `model`; returns the RGBA PNG. Throws `ReplicateError` on
- * every upstream failure, never a bare `Error`.
+ * The one prediction runner: create (with `Prefer: wait`) -> poll only while still running ->
+ * fetch the delivered bytes. Throws `ReplicateError` on every upstream failure, never a bare
+ * `Error`. The typed wrappers below decide what the bytes are.
  */
-export async function removeBackground(
-  model: CutoutModel,
-  png: Uint8Array,
-  options: { pollIntervalMs?: number } = {},
+async function runPrediction(
+  model: string,
+  input: Record<string, unknown>,
+  options: RunOptions,
 ): Promise<Buffer> {
-  const dataUri = `data:image/png;base64,${Buffer.from(png).toString('base64')}`
-  let prediction = await createPrediction(model, { image: dataUri })
+  let prediction = await createPrediction(model, input)
 
   if (isRunning(prediction.status)) {
     if (!prediction.id) throw new ReplicateError('Replicate prediction missing id for polling')
@@ -152,4 +152,53 @@ export async function removeBackground(
     )
   }
   return fetchDelivery(prediction)
+}
+
+const toDataUri = (png: Uint8Array): string =>
+  `data:image/png;base64,${Buffer.from(png).toString('base64')}`
+
+/**
+ * Image output as PNG. recraft cutout delivers RGBA WebP, not PNG (live-probed 2026-10-13); bria
+ * and real-esrgan deliver PNG. Normalize so every caller gets the PNG this module promises.
+ */
+async function asPng(bytes: Buffer): Promise<Buffer> {
+  if (magicBytesValid(bytes, 'png')) return bytes
+  if (magicBytesValid(bytes, 'webp')) return sharp(bytes).png().toBuffer()
+  throw new ReplicateError('Replicate output is neither PNG nor WebP (bad magic bytes)')
+}
+
+/** Remove the background of a PNG with `model`; returns the RGBA PNG. */
+export async function removeBackground(
+  model: CutoutModel,
+  png: Uint8Array,
+  options: RunOptions = {},
+): Promise<Buffer> {
+  return asPng(await runPrediction(model, { image: toDataUri(png) }, options))
+}
+
+/** Upscale a PNG by `scale` with real-esrgan; the alpha channel is preserved (live-probed). */
+export async function upscale(
+  png: Uint8Array,
+  scale: number,
+  options: RunOptions = {},
+): Promise<Buffer> {
+  return asPng(
+    await runPrediction(
+      UPSCALE_MODEL,
+      { image: toDataUri(png), scale, face_enhance: false },
+      options,
+    ),
+  )
+}
+
+/** After an optional BOM, whitespace and XML prolog, the document must open with `<svg`. */
+const SVG_START = /^\uFEFF?\s*(?:<\?xml[\s\S]*?\?>\s*)?<svg[\s>]/
+
+/** Vectorize a PNG with recraft; returns the SVG document as a string. */
+export async function vectorize(png: Uint8Array, options: RunOptions = {}): Promise<string> {
+  const svg = (await runPrediction(VECTORIZE_MODEL, { image: toDataUri(png) }, options)).toString(
+    'utf8',
+  )
+  if (!SVG_START.test(svg)) throw new ReplicateError('Replicate vectorize output is not an SVG')
+  return svg
 }

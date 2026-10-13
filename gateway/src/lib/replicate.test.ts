@@ -7,8 +7,14 @@ process.env['OPENAI_BASE_URL'] ??= 'http://localhost:1'
 process.env['OPENAI_API_KEY'] ??= 'test-key'
 
 const { env } = await import('../env.js')
-const { isReplicateDeliveryUrl, removeBackground, ReplicateError, resolveReplicateBase } =
-  await import('./replicate.js')
+const {
+  isReplicateDeliveryUrl,
+  removeBackground,
+  ReplicateError,
+  resolveReplicateBase,
+  upscale,
+  vectorize,
+} = await import('./replicate.js')
 
 // Whichever test file loaded env.ts first wins, so pin the override on the parsed object.
 env.REPLICATE_BASE_URL = 'http://replicate.test/replicate/v1'
@@ -173,5 +179,92 @@ describe('removeBackground', () => {
   test('a non-retryable create error becomes ReplicateError', async () => {
     mockFetch(() => json({ detail: 'nope' }, 422))
     await expect(removeBackground(MODEL, INPUT)).rejects.toThrow(ReplicateError)
+  })
+})
+
+describe('upscale', () => {
+  const UPSCALE_MODEL = 'nightmareai/real-esrgan'
+
+  test('posts image + scale to real-esrgan and returns the PNG', async () => {
+    const calls = mockFetch((call) =>
+      call.url === DELIVERY
+        ? new Response(PNG_BYTES)
+        : json({ id: 'u1', status: 'succeeded', output: DELIVERY }),
+    )
+
+    const out = await upscale(INPUT, 8)
+
+    expect(new Uint8Array(out)).toEqual(PNG_BYTES)
+    const create = calls[0] as Call
+    expect(create.url).toBe(
+      `http://replicate.test/replicate/v1/models/${UPSCALE_MODEL}/predictions`,
+    )
+    const input = (create.body as { input: Record<string, unknown> }).input
+    expect(input['scale']).toBe(8)
+    expect(input['face_enhance']).toBe(false)
+    expect(input['image']).toStartWith('data:image/png;base64,')
+  })
+
+  test('a WebP delivery is normalized to PNG, alpha kept', async () => {
+    const webp = await sharp({
+      create: { width: 4, height: 4, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 0.5 } },
+    })
+      .webp({ lossless: true })
+      .toBuffer()
+    mockFetch((call) =>
+      call.url === DELIVERY
+        ? new Response(webp)
+        : json({ id: 'u2', status: 'succeeded', output: DELIVERY }),
+    )
+    const out = await upscale(INPUT, 4)
+    expect([...out.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    const meta = await sharp(out).metadata()
+    expect([meta.format, meta.hasAlpha]).toEqual(['png', true])
+  })
+
+  test('a delivery that is neither PNG nor WebP is rejected', async () => {
+    mockFetch((call) =>
+      call.url === DELIVERY
+        ? new Response(new Uint8Array([1, 2, 3, 4]))
+        : json({ id: 'u3', status: 'succeeded', output: DELIVERY }),
+    )
+    await expect(upscale(INPUT, 4)).rejects.toThrow(ReplicateError)
+  })
+})
+
+describe('vectorize', () => {
+  const SVG_URL = 'https://replicate.delivery/pbxt/out.svg'
+  const svgFetch = (body: string): Call[] =>
+    mockFetch((call) =>
+      call.url === SVG_URL
+        ? new Response(body)
+        : json({ id: 'v1', status: 'succeeded', output: SVG_URL }),
+    )
+
+  test('posts only the image to recraft-vectorize and returns the SVG text', async () => {
+    const svg = '<svg viewBox="0 0 2 2" xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>'
+    const calls = svgFetch(svg)
+
+    expect(await vectorize(INPUT)).toBe(svg)
+
+    const create = calls[0] as Call
+    expect(create.url).toBe(
+      'http://replicate.test/replicate/v1/models/recraft-ai/recraft-vectorize/predictions',
+    )
+    expect(Object.keys((create.body as { input: object }).input)).toEqual(['image'])
+  })
+
+  test('accepts an XML prolog and leading whitespace before <svg', async () => {
+    const svg =
+      '\n  <?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg"/>'
+    svgFetch(svg)
+    expect(await vectorize(INPUT)).toBe(svg)
+  })
+
+  test('rejects output that is not an SVG', async () => {
+    for (const body of ['<html><svg></svg></html>', '{"error":"nope"}', '']) {
+      svgFetch(body)
+      await expect(vectorize(INPUT)).rejects.toThrow(ReplicateError)
+    }
   })
 })

@@ -15,6 +15,7 @@
     "@image-gateway/shared": "workspace:*",
     "elysia": "1.4.30",
     "sharp": "0.35.5",
+    "svgo": "4.1.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

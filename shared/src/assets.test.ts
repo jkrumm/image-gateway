@@ -21,12 +21,21 @@ describe('cutout contract', () => {
 })
 
 describe('icons contract', () => {
-  test('defaults: white background, auto cutout, recraft', () => {
+  test('defaults: white background, auto cutout, recraft, auto upscale, auto svg', () => {
     expect(iconsRequestSchema.parse({})).toEqual({
       background: '#ffffff',
       cutout: 'auto',
       cutout_model: DEFAULT_CUTOUT_MODEL,
+      upscale: 'auto',
+      svg: 'auto',
     })
+  })
+
+  test('upscale is auto | always | never, svg is auto | never', () => {
+    expect(iconsRequestSchema.safeParse({ upscale: 'always' }).success).toBe(true)
+    expect(iconsRequestSchema.safeParse({ upscale: 'sometimes' }).success).toBe(false)
+    expect(iconsRequestSchema.safeParse({ svg: 'never' }).success).toBe(true)
+    expect(iconsRequestSchema.safeParse({ svg: 'always' }).success).toBe(false)
   })
 
   test('background must be #rrggbb', () => {

@@ -21,6 +21,14 @@ export const CUTOUT_PRICE_USD: Record<CutoutModel, number> = {
   'bria/remove-background': 0.018,
 }
 
+/** Upscaling: official model, alpha preserved (recraft-crisp-upscale flattens it - rejected). */
+export const UPSCALE_MODEL = 'nightmareai/real-esrgan'
+export const UPSCALE_PRICE_USD = 0.002
+
+/** Vectorizing the master into the SVG favicon; same input limits as the recraft cutout. */
+export const VECTORIZE_MODEL = 'recraft-ai/recraft-vectorize'
+export const VECTORIZE_PRICE_USD = 0.01
+
 /** recraft's documented input limits; enforced for both models so the cutout contract is uniform. */
 export const CUTOUT_LIMITS = {
   maxImageBytes: 5 * 1024 * 1024,
@@ -51,6 +59,8 @@ export const cutoutResponseSchema = z.object({
 export type CutoutResponse = z.infer<typeof cutoutResponseSchema>
 
 export const CUTOUT_MODES = ['auto', 'always', 'never'] as const
+export const UPSCALE_MODES = ['auto', 'always', 'never'] as const
+export const SVG_MODES = ['auto', 'never'] as const
 
 export const iconsRequestSchema = z.object({
   /** Fill for the OPAQUE targets only (apple-touch-icon, icon-mask, icon-1024). */
@@ -61,6 +71,10 @@ export const iconsRequestSchema = z.object({
   /** `auto` cuts out only when the master has no real transparency. */
   cutout: z.enum(CUTOUT_MODES).default('auto'),
   cutout_model: z.enum(CUTOUT_MODELS).default(DEFAULT_CUTOUT_MODEL),
+  /** `auto` upscales only when the master's long edge is under 512 px. */
+  upscale: z.enum(UPSCALE_MODES).default('auto'),
+  /** `auto` vectorizes the master into `favicon.svg` (dropped when it comes out too large). */
+  svg: z.enum(SVG_MODES).default('auto'),
 })
 export type IconsRequest = z.infer<typeof iconsRequestSchema>
 export type IconsRequestInput = z.input<typeof iconsRequestSchema>
@@ -86,6 +100,17 @@ export const iconsManifestSchema = z.object({
 })
 export type IconsManifest = z.infer<typeof iconsManifestSchema>
 
+export const ICON_STEPS = ['upscale', 'cutout', 'vectorize'] as const
+
+/** One Replicate call that actually ran for this request. */
+export const iconStepSchema = z.object({
+  step: z.enum(ICON_STEPS),
+  model: z.string(),
+  cost_usd: z.number(),
+  latency_ms: z.number(),
+})
+export type IconStep = z.infer<typeof iconStepSchema>
+
 export const iconsResponseSchema = z.object({
   id: z.string(),
   files: z.array(iconFileSchema),
@@ -93,8 +118,11 @@ export const iconsResponseSchema = z.object({
   html: z.string(),
   /** The `icons` array for a web app manifest. */
   manifest: iconsManifestSchema,
-  /** Present only when a cutout actually ran. */
-  cutout: z.object({ model: z.enum(CUTOUT_MODELS), cost: costSchema }).nullable(),
+  /** Only the Replicate steps that ran, in pipeline order. */
+  steps: z.array(iconStepSchema),
+  /** Set when `svg: auto` ran but `favicon.svg` was omitted (too large to be worth shipping). */
+  svg_skipped_reason: z.string().optional(),
+  /** Total across `steps`. */
   cost: costSchema,
   latency_ms: z.number(),
 })

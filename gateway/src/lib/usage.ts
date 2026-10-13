@@ -21,6 +21,8 @@ const ZERO_USAGE: Usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
  */
 async function postRecord(args: {
   requestId: string
+  /** Argo upserts on source + source_id + machine; a request with several records needs one each. */
+  sourceId?: string | undefined
   model: string
   subTool: UsageSubTool
   usage: Usage
@@ -46,7 +48,7 @@ async function postRecord(args: {
     const now = new Date().toISOString()
     const record = {
       source: 'image-gateway',
-      source_id: args.requestId,
+      source_id: args.sourceId ?? args.requestId,
       grain: 'request',
       ts: now,
       ingested_at: now,
@@ -98,6 +100,7 @@ async function postRecord(args: {
 /** Report a successful request. */
 export function reportUsage(args: {
   requestId: string
+  sourceId?: string | undefined
   model: string
   subTool: UsageSubTool
   usage: Usage
@@ -118,6 +121,7 @@ export function reportUsage(args: {
  */
 export function reportUsageError(args: {
   requestId: string
+  sourceId?: string | undefined
   model: string
   subTool: UsageSubTool
   durationMs: number
@@ -128,6 +132,7 @@ export function reportUsageError(args: {
 }): Promise<void> {
   return postRecord({
     requestId: args.requestId,
+    sourceId: args.sourceId,
     model: args.model,
     subTool: args.subTool,
     durationMs: args.durationMs,
