@@ -8,6 +8,8 @@ import { healthRoute, setDraining } from './routes/health.js'
 import { generateRoutes } from './routes/generate.js'
 import { editRoutes } from './routes/edit.js'
 import { enhanceRoutes } from './routes/enhance.js'
+import { cutoutRoutes } from './routes/cutout.js'
+import { iconsRoutes } from './routes/icons.js'
 
 export const app = new Elysia()
   .use(
@@ -18,7 +20,7 @@ export const app = new Elysia()
           title: 'image-gateway',
           version: '0.1.0',
           description:
-            'Stateless gateway wrapping the gpt-image model family. Accepts a prompt and parameters, calls the upstream image-generations/edits endpoints, and returns base64 images with usage/cost telemetry. Supports SSE streaming previews on both `/generate` and `/edit`. Also exposes `/enhance`, the "Plan" brain: compiles the versioned playbook into a system prompt, asks a text model for a structured plan, and resolves it through `rules.ts` — never generates an image. No database, no image storage. All routes except `GET /` and `GET /health` require `Authorization: Bearer <API_SECRET>`.',
+            'Stateless gateway wrapping the gpt-image model family. Accepts a prompt and parameters, calls the upstream image-generations/edits endpoints, and returns base64 images with usage/cost telemetry. Supports SSE streaming previews on both `/generate` and `/edit`. Also exposes `/enhance`, the "Plan" brain: compiles the versioned playbook into a system prompt, asks a text model for a structured plan, and resolves it through `rules.ts` — never generates an image. `/cutout` removes an image background via Replicate; `/icons` turns one master image into a full web/PWA/macOS icon set. No database, no image storage. All routes except `GET /` and `GET /health` require `Authorization: Bearer <API_SECRET>`.',
         },
         components: {
           securitySchemes: {
@@ -33,6 +35,11 @@ export const app = new Elysia()
           {
             name: 'Prompts',
             description: 'Plan an image-generation prompt — never returns an image.',
+          },
+          {
+            name: 'Assets',
+            description:
+              'Background removal and icon-set generation from an existing image — never generates a new one.',
           },
           { name: 'System', description: 'Discovery and health endpoints.' },
         ],
@@ -61,6 +68,8 @@ export const app = new Elysia()
         generate: 'POST /generate',
         edit: 'POST /edit',
         enhance: 'POST /enhance',
+        cutout: 'POST /cutout',
+        icons: 'POST /icons',
       },
       playbook_version: PLAYBOOK_VERSION,
     }),
@@ -81,6 +90,8 @@ export const app = new Elysia()
           generate: z.string(),
           edit: z.string(),
           enhance: z.string(),
+          cutout: z.string(),
+          icons: z.string(),
         }),
         playbook_version: z.string().describe('Current shared/playbook/ doctrine version'),
       }),
@@ -97,6 +108,8 @@ export const app = new Elysia()
   .use(generateRoutes)
   .use(editRoutes)
   .use(enhanceRoutes)
+  .use(cutoutRoutes)
+  .use(iconsRoutes)
   .listen({ port: env.PORT, idleTimeout: 255 })
 
 export type App = typeof app

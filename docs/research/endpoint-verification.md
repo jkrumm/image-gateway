@@ -150,3 +150,26 @@ Also measured: **`gpt-image-2` at `quality: medium` @ 1024² = 1756 output token
 - `validateBackgroundForModel()` now **passes** for both generatable models; a new `validateTransparentOutputFormat()` rejects `transparent` + `jpeg` (no alpha channel there) instead.
 - `gateway/src/lib/upstream.ts`'s non-retry check (`isWrappedUserErrorBody`) recognizes both 503-wrapping shapes — the historical `user_error`-substring one and this round's `StatusCode: BadRequest` / `invalid_request_error` one, which contains no `user_error` substring at all and would otherwise burn 3 retries before failing.
 - `gpt-6-luna` text pricing (OpenAI's official pricing page, short-context tier — not a live probe against our own endpoint) was added to `gateway/src/lib/pricing.ts`'s `TEXT_RATES` alongside the still-measured `gpt-5.6-luna` row.
+
+---
+
+## 2026-10-13 — Replicate background removal (via IU /replicate/v1)
+
+Live-probed through the same IU proxy and key as the OpenAI upstream. The Replicate route sits beside `/openai/v1`: the base is `OPENAI_BASE_URL` with the trailing `/openai/v1` swapped for `/replicate/v1`, authenticated with `Authorization: Bearer <OPENAI_API_KEY>`. Implemented in `gateway/src/lib/replicate.ts`; consumed by `POST /cutout` and `POST /icons`.
+
+**Call shape.** Two OFFICIAL models, callable without a version hash: `POST {base}/models/{owner}/{name}/predictions` with body `{ "input": { "image": "data:image/png;base64,..." } }` and header `Prefer: wait`. Both returned inside the wait window (3.9-10s). If the status is still `starting`/`processing`, poll `GET {base}/predictions/{id}` — the flat path, not the public-host URL in `urls.get` — about once a second. On `succeeded`, `output` is a single URL string on `replicate.delivery`; any other host is refused. **The delivered format differs per model**: bria delivers PNG, recraft delivers **RGBA WebP** (found by the first live pipeline run — mocked tests had assumed PNG); `lib/replicate.ts` normalizes WebP to PNG.
+
+| Fact | `recraft-ai/recraft-remove-background` | `bria/remove-background` |
+|-|-|-|
+| Input | `image` only | `image` (or `image_url`) plus `preserve_alpha` (default true) |
+| Price | $0.01/run | $0.018/run |
+| Resolution | preserves input resolution | quirk: downscaled a 1254px input to 1024px |
+| Limits | <=5 MB, <=16 MP, sides 256-4096 px | not probed |
+| Output | RGBA **WebP**, near-binary matte with a thin soft edge, no halo on illustrated content | RGBA PNG, same matte quality |
+| Quirk | on one test the "transparent" background came back **alpha=1, not 0** | none observed |
+
+Consequences: recraft is the default (cheaper, faster, keeps resolution, tuned for AI-generated content); `/icons` zeroes alpha < 8 before trimming so recraft's alpha=1 background cannot survive into the trim box.
+
+**ICNS container** (verified by hexdumping a system .icns): 4-byte magic `icns` + big-endian u32 total file length, then chunks of 4-byte OSType + big-endian u32 chunk length (including the 8-byte chunk header) + raw PNG bytes. PNG OSTypes: `icp4`=16, `icp5`=32, `ic11`=32 (16@2x), `ic12`=64 (32@2x), `ic07`=128, `ic13`=256 (128@2x), `ic08`=256, `ic14`=512 (256@2x), `ic09`=512, `ic10`=1024 (512@2x). The higher codes (ic09-ic14) are from secondary sources; `icon-containers.test.ts` writes the file and round-trips it through `iconutil -c iconset` (macOS only), confirming all 10 iconset files at the expected pixel sizes.
+
+**ICO with PNG frames**: little-endian ICONDIR (reserved u16=0, type u16=1, count u16), N x 16-byte ICONDIRENTRY (width u8, height u8 [0 means 256], colorCount u8=0, reserved u8=0, planes u16=1, bitCount u16=32, bytesInRes u32, imageOffset u32), then the PNG bytes verbatim. Frames 16, 32, 48.

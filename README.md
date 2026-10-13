@@ -4,7 +4,7 @@ Personal image-generation gateway built on the gpt-image model family, with an o
 
 Parts:
 
-- **`gateway/`** — the primary surface: a stateless HTTP service (Elysia + Bun) wrapping an OpenAI-compatible image API: generation, editing, reference images, prompt planning (`/enhance`). No database, no storage — images and usage data flow straight through to the client. Deployed on a VPS, reachable only over a private tailnet with bearer auth. Agents reach it through `imgcli gen` (the dotfiles `/img` skill).
+- **`gateway/`** — the primary surface: a stateless HTTP service (Elysia + Bun) wrapping an OpenAI-compatible image API: generation, editing, reference images, prompt planning (`/enhance`), background removal via Replicate (`/cutout`) and full favicon/app-icon sets (`/icons`). No database, no storage — images and usage data flow straight through to the client. Deployed on a VPS, reachable only over a private tailnet with bearer auth. Agents reach it through `imgcli gen` / `cutout` / `icon` (the dotfiles `/img` skill).
 - **`app/`** — an optional macOS studio app (Tauri v2, React + Mantine/basalt-ui) for interactive work: Plan-driven Create surface, a local-first library with projects, roles, lineage and style guides — every generation lands as a Finder-browsable folder with a JSON metadata sidecar.
 
 A small `shared/` workspace package holds the zod contract and the prompting playbook both sides build against.

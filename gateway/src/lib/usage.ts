@@ -6,13 +6,13 @@ import { log } from './log.js'
  * Which route produced the record. Argo groups on `sub_tool`, so without this
  * every generation, edit and plan collapses into one `(unset)` bucket.
  */
-export type UsageSubTool = 'generate' | 'edit' | 'enhance'
+export type UsageSubTool = 'generate' | 'edit' | 'enhance' | 'cutout' | 'icons'
 
 const EMPTY_COST: Cost = { usd: null, source: 'none' }
 const ZERO_USAGE: Usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
 
 /**
- * The one per-request outcome sink: every finished generate/edit/enhance call
+ * The one per-request outcome sink: every finished generate/edit/enhance/cutout/icons call
  * (success or upstream failure, streamed or not) passes through here, so it
  * writes the `request.done` log line — `make logs` otherwise shows nothing for
  * a healthy gateway — then fire-and-forgets the record to argo. The argo POST

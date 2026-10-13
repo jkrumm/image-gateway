@@ -25,6 +25,10 @@ const Env = z.object({
   // Top-level `reasoning_effort` sent with every ENHANCE_MODEL call. Restricted
   // to the ladder probed on this endpoint for gpt-6-luna.
   ENHANCE_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high']).default('high'),
+  // Replicate route on the same proxy (`/cutout`, `/icons`). Optional: derived from
+  // OPENAI_BASE_URL by swapping the trailing `/openai/v1` for `/replicate/v1` — see
+  // src/lib/replicate.ts. Set only when that derivation does not apply.
+  REPLICATE_BASE_URL: z.url().optional(),
   ARGO_USAGE_URL: z.url().optional(),
   ARGO_API_SECRET: z.string().optional(),
   // Labels usage telemetry records so local dev runs don't get counted as VPS traffic.
