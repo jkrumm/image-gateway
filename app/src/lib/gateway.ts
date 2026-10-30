@@ -18,9 +18,9 @@ import { fetch } from '@tauri-apps/plugin-http'
 import type { ServiceConnection } from './settings'
 
 /**
- * Calls the image-gateway's `POST /generate` and `POST /edit`. Uses
+ * Calls the agent-workflows image door's `POST /generate` and `POST /edit` (base URL `<door>/door/image`). Uses
  * `@tauri-apps/plugin-http`'s `fetch` (routed through the Rust client) instead of the
- * webview's `fetch`, so the tailnet-only gateway host isn't subject to WKWebView CORS
+ * webview's `fetch`, so the tailnet-only door host isn't subject to WKWebView CORS
  * restrictions. Verified against the installed plugin's source (2.5.9): the response
  * body is a genuine pull-based `ReadableStream` backed by chunked IPC reads
  * (`plugin:http|fetch_read_body` per `pull()`), not a buffered blob — so SSE streaming

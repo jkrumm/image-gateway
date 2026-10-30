@@ -56,23 +56,8 @@ up: ## THE entrypoint: bring both halves to your working tree — build+install 
 	@$(MAKE) --no-print-directory gateway-status
 	@echo "✓ both halves match your working tree"
 
-configure: ## Seed ~/Pictures/ImageGen/.imagegen/settings.json from 1Password (gateway URL + token) so the app never asks for them. Re-run after rotating the token.
-	@BASE=$$($(call op_read,op://vps/image-gateway/BASE_URL)); \
-	TOKEN=$$($(call op_read,op://vps/image-gateway/API_SECRET)); \
-	if [ -z "$$BASE" ] || [ -z "$$TOKEN" ]; then \
-	  echo "✗ could not read the gateway URL/token from 1Password."; \
-	  echo "  This machine is headless-by-default: plain 'op' blocks on a biometric prompt, so the"; \
-	  echo "  refs below need to be in dotfiles-private/headless.refs, then 'make secrets-seed':"; \
-	  echo "      op://vps/image-gateway/BASE_URL"; \
-	  echo "      op://vps/image-gateway/API_SECRET"; \
-	  echo "  (Or run 'op signin --account tkrumm' in this shell first, with someone present.)"; \
-	  exit 1; \
-	fi; \
-	mkdir -p "$(HOME)/Pictures/ImageGen/.imagegen"; \
-	umask 077; \
-	printf '{\n  "gateway": { "baseUrl": "%s", "token": "%s" }\n}\n' "$$BASE" "$$TOKEN" > "$(HOME)/Pictures/ImageGen/.imagegen/settings.json"; \
-	chmod 600 "$(HOME)/Pictures/ImageGen/.imagegen/settings.json"; \
-	echo "✓ wrote ~/Pictures/ImageGen/.imagegen/settings.json (chmod 600) — restart the app to pick it up"
+configure: ## Seed ~/Pictures/ImageGen/.imagegen/settings.json (agent-workflows image door URL + studio token, read from the mini over ssh) so the app never asks. Merges; override with AGW_DOOR_URL / AGW_DOOR_TOKEN.
+	@./scripts/configure.sh
 
 ##@ The Mac app — this is how you actually use ImageGen
 

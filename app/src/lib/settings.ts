@@ -43,7 +43,7 @@ function safeParseSettings(raw: unknown): Settings | undefined {
 }
 
 /**
- * Gateway connection settings.
+ * Image-door connection settings (the `gateway` key keeps its name: the wire contract is unchanged).
  *
  * The localStorage hook below is a *cache*, not the store of record — the file at
  * `~/Pictures/ImageGen/.imagegen/settings.json` is. Two reasons, both discovered the hard way:
@@ -53,7 +53,7 @@ function safeParseSettings(raw: unknown): Settings | undefined {
  *    `~/Library/WebKit/com.jkrumm.image-gen`. Settings typed into one are invisible to the
  *    other, so you re-enter the token every time you cross between them.
  *  - The file can be seeded from outside the app entirely (`make configure` writes it from
- *    1Password), which means a fresh machine or a wiped webview store never needs the token
+ *    the mini's door token), which means a fresh machine or a wiped webview store never needs the token
  *    typed by hand at all.
  *
  * The token lands on disk in plaintext either way — localStorage was never more private than a

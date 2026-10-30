@@ -18,15 +18,17 @@ Scope and waves: [`PRD.md`](PRD.md). Mental model and IA: [`docs/concept.md`](do
 
 ## MacBook install
 
-Prerequisites: Xcode Command Line Tools (`xcode-select --install`), a Rust toolchain ≥ 1.85 (`rustup`), and `bun`. The 1Password app signed in to the personal account — `make configure` reads the token through it.
+Prerequisites: Xcode Command Line Tools (`xcode-select --install`), a Rust toolchain ≥ 1.85 (`rustup`), and `bun`. Tailscale connected and `ssh mini` working — `make configure` reads the door URL and token from the mini.
 
 ```bash
 cd ~/SourceRoot && git clone git@github.com:jkrumm/image-gateway.git && cd image-gateway
 bun install --frozen-lockfile
 make app          # release build (~70 s warm, ~10 min cold) → /Applications/ImageGen.app, fingerprinted
-make configure    # biometric op: seeds the gateway URL + token, never asks in-app
+make configure    # ssh mini: seeds the image door URL + studio token, never asks in-app
 make app-run      # refuses to launch an app that is not built from this working tree
 ```
+
+The studio does not talk to the VPS gateway: it calls the agent-workflows image door on the mini, `https://agw-image.<DEV_DOMAIN>/door/image/{generate,edit,enhance}`, over the tailnet with a per-caller bearer (caller `studio`, from the mini's `~/.agent-workflows/data/door-tokens`). The wire contract is the gateway's, so the app's `gateway` settings key and request code are unchanged. `make configure` reads the base URL and token from the mini over `ssh mini` and merges them into `~/Pictures/ImageGen/.imagegen/settings.json` (other keys kept, mode 600, token never printed); `AGW_DOOR_URL` / `AGW_DOOR_TOKEN` override either value.
 
 The library lives at `~/Pictures/ImageGen/` — one folder per generation with its sidecar, plus `.imagegen/` for settings, drafts, projects and style guides. The in-memory index is rebuilt from the sidecars on every start; `.imagegen/` itself is state (tokens, projects, style guides with their reference files, the Create draft) — it lives with the library and is not regenerable. `make app-status` says whether the installed app matches the checkout; `make app-logs` tails `~/Library/Logs/com.jkrumm.image-gen/imagegen.log`.
 

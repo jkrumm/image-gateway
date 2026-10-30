@@ -43,11 +43,11 @@ export function SettingsModal({ opened, onClose }: SettingsModalProps) {
     <Modal opened={opened} onClose={onClose} title="Settings">
       <Stack gap="md">
         <Text size="sm" fw={500}>
-          Gateway
+          Image door
         </Text>
         <TextInput
-          label="Gateway URL"
-          placeholder="https://image-gateway.example.ts.net"
+          label="Door URL"
+          placeholder="https://agw-image.example.com/door/image"
           value={gatewayBaseUrl}
           onChange={(event) => setGatewayBaseUrl(event.currentTarget.value)}
         />
@@ -58,8 +58,8 @@ export function SettingsModal({ opened, onClose }: SettingsModalProps) {
         />
 
         <Text size="xs" c="dimmed">
-          The gateway is reachable only over your tailnet — make sure Tailscale is connected before
-          generating.
+          The image door is reachable only over your tailnet — make sure Tailscale is connected
+          before generating.
         </Text>
         {saveError !== null && (
           <Text size="xs" c="red">
