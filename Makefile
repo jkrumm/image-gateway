@@ -1,21 +1,12 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up configure app app-run app-status app-logs dev check \
-        deploy verify logs gateway-deploy gateway-status gateway-smoke gateway-logs gateway-logs-bounded
+.PHONY: help up configure app app-run app-status app-logs dev check
 
 # The sources that determine what the built app IS. Anything listed here that
 # changes makes the installed app stale — see scripts/codesum.ts.
 APP_SOURCES := app/src app/src-tauri/src app/src-tauri/capabilities shared/src \
                app/index.html app/vite.config.ts \
                app/src-tauri/tauri.conf.json app/src-tauri/Cargo.toml
-
-# Read a secret without ever hanging. `secrets-run` (the age-encrypted offline cache) is the
-# headless path and fails fast when a ref is not seeded; plain `op` is the fallback for a signed-in
-# human. The timeout is load-bearing, not defensive padding: on the mini `op` blocks forever on a
-# biometric prompt nobody is there to approve, which turns any target that reads a secret into a
-# hang rather than an error. Callers get an empty string and decide what to say.
-#   usage: VALUE=$$($(call op_read,op://vault/item/field))
-op_read = secrets-run read $(1) 2>/dev/null || timeout 15 op read $(1) --account tkrumm </dev/null 2>/dev/null
 
 BUNDLE    := app/src-tauri/target/release/bundle/macos/ImageGen.app
 # /Applications is not writable on an MDM-managed Mac, and `sudo cp` for a
@@ -29,32 +20,13 @@ BUNDLE_ID := com.jkrumm.image-gen
 APP_LOG   := $(HOME)/Library/Logs/$(BUNDLE_ID)/imagegen.log
 
 help: ## Show this help (default target — a bare `make` runs it)
-	@awk 'BEGIN {FS = ":.*##"; printf "\nimage-gateway — run \033[36mmake <target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nimage-gateway (ImageGen studio) — run \033[36mmake <target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 	@echo ""
 
-##@ Contract — the machine-facing interface (AGENTS.md ## Validate / ## Deploy / ## Verify & Monitor)
+##@ The studio
 
-deploy: ## Ship the merged default branch: re-trigger the RollHook gateway deploy and wait for it. (The Mac app is installed locally by `make app`, not deployed here.)
-	@$(MAKE) --no-print-directory gateway-deploy
-
-verify: ## Probe production: is the gateway live and healthy, and running the image built from your HEAD? Exits non-zero when not.
-	@$(MAKE) --no-print-directory gateway-status
-
-logs: ## Bounded tail of the deployed gateway's logs (last 200 lines, then exits)
-	@$(MAKE) --no-print-directory gateway-logs-bounded
-
-##@ Both halves
-
-up: ## THE entrypoint: bring both halves to your working tree — build+install the Mac app, deploy the gateway — and prove each one. Terminates.
-	@echo "==> [1/2] Mac app"
+up: ## THE entrypoint: build+install the Mac app and prove it matches your working tree (`make app`). Terminates.
 	@$(MAKE) --no-print-directory app
-	@echo ""
-	@echo "==> [2/2] Gateway"
-	@$(MAKE) --no-print-directory gateway-deploy
-	@echo ""
-	@$(MAKE) --no-print-directory app-status
-	@$(MAKE) --no-print-directory gateway-status
-	@echo "✓ both halves match your working tree"
 
 configure: ## Seed ~/Pictures/ImageGen/.imagegen/settings.json (agent-workflows image door URL + studio token, read from the mini over ssh) so the app never asks. Merges; override with AGW_DOOR_URL / AGW_DOOR_TOKEN.
 	@./scripts/configure.sh
@@ -150,91 +122,9 @@ app-logs: ## Tail the running app's log (this one does not terminate — Ctrl-C 
 
 ##@ Development — for changing the code, not for using the app
 
-dev: ## Dev-server pair: gateway on :7716 (--watch) + `tauri dev` with HMR. For writing code; `make app` is how you actually use ImageGen.
+dev: ## `tauri dev` with HMR. For writing code; `make app` is how you actually use ImageGen.
 	bun run dev
 
-check: ## format:check + lint + typecheck across all workspaces, then the full test suite
+check: ## format:check + lint + typecheck across the workspaces, then the full test suite
 	bun run pre
 	bun test
-
-##@ Gateway
-
-gateway-deploy: ## Deploy gateway/ + shared/ to the VPS via RollHook and wait for the rollout to land.
-	@# RollHook builds from GitHub master, so anything uncommitted or unpushed simply is not in
-	@# the deploy. Say that up front rather than reporting success for someone else's code.
-	@if [ -n "$$(git status --porcelain -- gateway shared)" ]; then \
-	  echo "✗ gateway/ or shared/ has uncommitted changes — RollHook builds from GitHub master, so they would not be deployed."; \
-	  git status --short -- gateway shared | sed 's/^/    /'; \
-	  exit 1; \
-	fi
-	@if [ -n "$$(git log origin/master..master --oneline -- gateway shared)" ]; then \
-	  echo "✗ gateway/ or shared/ commits are not pushed — RollHook would build the previous state:"; \
-	  git log origin/master..master --oneline -- gateway shared | sed 's/^/    /'; \
-	  exit 1; \
-	fi
-	gh workflow run deploy.yml --repo jkrumm/image-gateway --ref master
-	@printf "  waiting for the rollout… "
-	@sleep 5
-	@for i in $$(seq 1 60); do \
-	  STATUS=$$(gh run list --repo jkrumm/image-gateway --limit 1 --json status,conclusion --jq '.[0].status + ":" + (.[0].conclusion // "")'); \
-	  case "$$STATUS" in \
-	    completed:success) echo "ok"; break;; \
-	    completed:*) echo "FAILED"; echo "✗ deploy failed — 'gh run view --repo jkrumm/image-gateway --log-failed'"; exit 1;; \
-	  esac; \
-	  sleep 5; \
-	done
-
-gateway-status: ## Is the deployed gateway healthy, and is it running the image built from your HEAD?
-	@# Same idea as the app's fingerprint: the running image is tagged with the git SHA it was
-	@# built from, so comparing it to HEAD proves the deployed code is the code you have. A
-	@# healthy container says nothing about WHICH code is healthy. (These comments live outside
-	@# the shell block below on purpose — that block is one backslash-continued command, so a
-	@# `#` inside it would comment out everything that follows.)
-	@printf "  verifying the deployed gateway matches your HEAD… "
-	@RUNNING=$$(ssh vps 'docker inspect --format "{{.Config.Image}}" $$(docker ps -q --filter "label=com.docker.compose.service=image-gateway") 2>/dev/null' 2>/dev/null | sed 's/.*://'); \
-	HEAD_SHA=$$(git rev-parse HEAD); \
-	if [ -z "$$RUNNING" ]; then \
-	  echo "UNKNOWN"; \
-	  echo "✗ could not read the running image tag over ssh — the deployed version is unverified."; \
-	  exit 1; \
-	elif [ "$$RUNNING" != "$$HEAD_SHA" ]; then \
-	  echo "MISMATCH"; \
-	  echo "✗ the gateway is serving an image built from a different commit than your HEAD."; \
-	  echo "    HEAD:     $$HEAD_SHA"; \
-	  echo "    deployed: $$RUNNING"; \
-	  echo "  Deploy with: make gateway-deploy"; \
-	  exit 1; \
-	fi; \
-	echo "ok ($$(echo $$RUNNING | cut -c1-12))"
-	@# The health probe is a bonus, not the verification — and it is the only part that needs a
-	@# hostname. Degrade rather than fail when the URL is unavailable: BASE_URL is a non-secret
-	@# coordinate that merely lives in 1P (the repo is public and must not hardcode the host), so
-	@# an unseeded cache is no reason to withhold the SHA check that just passed.
-	@BASE=$${IMAGE_GATEWAY_BASE_URL:-$$($(call op_read,op://vps/image-gateway/BASE_URL))}; \
-	if [ -z "$$BASE" ]; then \
-	  echo "  ⚠ skipped the /health probe — no gateway URL available (set IMAGE_GATEWAY_BASE_URL or seed op://vps/image-gateway/BASE_URL)"; \
-	  exit 0; \
-	fi; \
-	printf "  probing %s/health… " "$$BASE"; \
-	HEALTH=$$(curl -sS --max-time 15 "$$BASE/health" 2>/dev/null); \
-	if [ "$$HEALTH" = '{"status":"ok"}' ]; then echo "ok"; else echo "UNHEALTHY"; echo "✗ returned: $$HEALTH"; exit 1; fi
-
-gateway-logs: ## Tail the deployed gateway's container logs (does not terminate — Ctrl-C to stop)
-	ssh vps 'docker logs -f $$(docker ps -q --filter "label=com.docker.compose.service=image-gateway")'
-
-gateway-logs-bounded: ## Print the last 200 lines of the deployed gateway's logs, then exit (the `make logs` contract target)
-	ssh vps 'docker logs --tail 200 $$(docker ps -q --filter "label=com.docker.compose.service=image-gateway")'
-
-gateway-smoke: ## Probe the deployed gateway: /health (unauthenticated) + an authenticated /enhance round trip.
-	@BASE=$${IMAGE_GATEWAY_BASE_URL:-$$($(call op_read,op://vps/image-gateway/BASE_URL))}; \
-	if [ -z "$$BASE" ]; then echo "✗ set IMAGE_GATEWAY_BASE_URL=https://<host> or seed op://vps/image-gateway/BASE_URL"; exit 1; fi; \
-	echo "  GET $$BASE/health"; \
-	curl -sS --max-time 10 "$$BASE/health" || { echo "✗ unreachable — the gateway is Tailscale-only, so check the tailnet first"; exit 1; }; \
-	echo ""; \
-	TOKEN=$$($(call op_read,op://vps/image-gateway/API_SECRET)); \
-	if [ -z "$$TOKEN" ]; then echo "⚠ no API_SECRET available — skipping the authenticated probe"; exit 0; fi; \
-	echo "  POST $$BASE/enhance"; \
-	curl -sS --max-time 60 -X POST "$$BASE/enhance" \
-	  -H "Authorization: Bearer $$TOKEN" -H "Content-Type: application/json" \
-	  -d '{"brief":"a small red fox icon, flat vector style"}' | head -c 400; \
-	echo ""

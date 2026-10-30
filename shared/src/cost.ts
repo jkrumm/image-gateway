@@ -1,11 +1,9 @@
 import type { KnownImageModel } from './contract.js'
 
 /**
- * USD per 1M output tokens per model. Mirrors `gateway/src/lib/pricing.ts`'s
- * `RATES[model].out` (OpenAI-direct pricing) — the two must never disagree.
- * Duplicated here rather than imported because `pricing.ts` prices a live
- * `usage` response (including the input side); this module estimates a cost
- * *before* a run exists, from the measured anchors below.
+ * USD per 1M output tokens per model (OpenAI-direct pricing). This module estimates a cost
+ * *before* a run exists, from the measured anchors below; the live cost of a finished run
+ * comes back in the door's response.
  *
  * Keyed by `KnownImageModel`, not `ImageModel`: historical generations on a
  * retired model still need a cost estimate/display in the library.

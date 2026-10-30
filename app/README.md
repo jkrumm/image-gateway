@@ -1,7 +1,7 @@
 # ImageGen (app)
 
-Tauri v2 macOS app — the optional interactive studio for the image-gateway. Owns the entire generation
-library on local disk; the gateway holds no state.
+Tauri v2 macOS app — the optional interactive studio, a client of the agent-workflows image door. Owns the entire
+generation library on local disk; the door holds no state.
 
 ## Prerequisites
 
@@ -35,13 +35,10 @@ notarized for distribution outside this machine.
 
 ## First run
 
-Open **Settings** (gear icon, top right) and enter:
-
-- **Gateway URL** — the image-gateway's Tailscale address (the gateway is tailnet-only;
-  make sure Tailscale is connected)
-- **Bearer token** — the gateway's auth token
-
-Both are stored in `localStorage`, nowhere else.
+Run `make configure` from the repo root: it seeds the image door URL and the `studio` bearer token
+into `~/Pictures/ImageGen/.imagegen/settings.json` (the door is tailnet-only; make sure Tailscale is
+connected). The same two values can be entered in **Settings** (gear icon, top right); the file is
+the store of record, `localStorage` a cache hydrated from it.
 
 ## Library location
 

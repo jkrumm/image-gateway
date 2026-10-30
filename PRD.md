@@ -1,3 +1,5 @@
+> **Retired 2026-10-30:** the gateway part of this PRD (`gateway/`, the VPS service) is gone; agent-workflows (agw) owns generation, and this repo is only the ImageGen studio client of agw's image door. Kept as history.
+
 # PRD: image-gateway — Personal Image Generation Gateway and Studio
 
 ## Problem

@@ -1,20 +1,16 @@
-# image-gateway
+# image-gateway — the ImageGen Mac studio
 
-Personal image-generation gateway built on the gpt-image model family, with an optional interactive Mac studio.
+**ImageGen** is a personal macOS studio (Tauri v2, React + Mantine/basalt-ui) for interactive image work: a Plan-driven Create surface, a local-first library with projects, roles, lineage and style guides — every generation lands as a Finder-browsable folder with a JSON metadata sidecar.
 
-Parts:
-
-- **`gateway/`** — the primary surface: a stateless HTTP service (Elysia + Bun) wrapping an OpenAI-compatible image API: generation, editing, reference images, prompt planning (`/enhance`), background removal via Replicate (`/cutout`) and full favicon/app-icon sets (`/icons`). No database, no storage — images and usage data flow straight through to the client. Deployed on a VPS, reachable only over a private tailnet with bearer auth. Agents reach it through `imgcli gen` / `cutout` / `icon` (the dotfiles `/img` skill).
-- **`app/`** — an optional macOS studio app (Tauri v2, React + Mantine/basalt-ui) for interactive work: Plan-driven Create surface, a local-first library with projects, roles, lineage and style guides — every generation lands as a Finder-browsable folder with a JSON metadata sidecar.
-
-A small `shared/` workspace package holds the zod contract and the prompting playbook both sides build against.
+The repo name is historical. It once also held a stateless VPS gateway service; that service is retired (2026-10-30) and generation now lives in agent-workflows (agw). The studio is a client of agw's image door; a small `shared/` workspace package holds the zod contract and the prompting playbook it builds against.
 
 ## Status
 
-- **Gateway: live on the VPS** (`make gateway-status`, `make gateway-smoke`). Two models, `gpt-image-2.5-flare`/`gpt-image-2.5-sunburst`; transparency is available on both (`AGENTS.md`).
-- **Studio app: supported on the MacBook** (its UI machine — see *MacBook install*). Agents never need it: generation from the Mac mini goes through `imgcli gen` (the dotfiles `/img` skill), which calls the same gateway.
+- **Studio: supported on the MacBook** (its UI machine — see *MacBook install*). It calls the agw image door, `https://agw-image.<dev-domain>/door/image/{generate,edit,enhance}`, over the tailnet with a per-caller bearer (caller `studio`, from the mini's `~/.agent-workflows/data/door-tokens`).
+- **Agents on the mini never need it.** They generate with `agw image` / `agw image-icon` (via `imgcli`, the `/img` skill).
+- The wire contract is the one the gateway had, so the app's `gateway` settings key and request code are unchanged.
 
-Scope and waves: [`PRD.md`](PRD.md). Mental model and IA: [`docs/concept.md`](docs/concept.md). Ground truth about the upstream: [`docs/research/endpoint-verification.md`](docs/research/endpoint-verification.md).
+Mental model and IA: [`docs/concept.md`](docs/concept.md). Scope history (the gateway parts are retired): [`PRD.md`](PRD.md).
 
 ## MacBook install
 
@@ -28,25 +24,22 @@ make configure    # ssh mini: seeds the image door URL + studio token, never ask
 make app-run      # refuses to launch an app that is not built from this working tree
 ```
 
-The studio does not talk to the VPS gateway: it calls the agent-workflows image door on the mini, `https://agw-image.<DEV_DOMAIN>/door/image/{generate,edit,enhance}`, over the tailnet with a per-caller bearer (caller `studio`, from the mini's `~/.agent-workflows/data/door-tokens`). The wire contract is the gateway's, so the app's `gateway` settings key and request code are unchanged. `make configure` reads the base URL and token from the mini over `ssh mini` and merges them into `~/Pictures/ImageGen/.imagegen/settings.json` (other keys kept, mode 600, token never printed); `AGW_DOOR_URL` / `AGW_DOOR_TOKEN` override either value.
+`make configure` reads the base URL and token from the mini over `ssh mini` and merges them into `~/Pictures/ImageGen/.imagegen/settings.json` (other keys kept, mode 600, token never printed); `AGW_DOOR_URL` / `AGW_DOOR_TOKEN` override either value.
 
-The library lives at `~/Pictures/ImageGen/` — one folder per generation with its sidecar, plus `.imagegen/` for settings, drafts, projects and style guides. The in-memory index is rebuilt from the sidecars on every start; `.imagegen/` itself is state (tokens, projects, style guides with their reference files, the Create draft) — it lives with the library and is not regenerable. `make app-status` says whether the installed app matches the checkout; `make app-logs` tails `~/Library/Logs/com.jkrumm.image-gen/imagegen.log`.
+The library lives at `~/Pictures/ImageGen/` — one folder per generation with its sidecar, plus `.imagegen/` for settings, drafts, projects and style guides. The in-memory index is rebuilt from the sidecars on every start; `.imagegen/` itself is state (tokens, projects, style guides with their reference files, the Create draft) — it lives with the library, is the owner's real data, and is never regenerated. `make app-status` says whether the installed app matches the checkout.
 
 ## Local dev
 
 ```bash
 bun install
-bun run dev        # gateway (:7716, killed+rebound) + Tauri app, concurrently
+bun run dev        # tauri dev with HMR (the app's dev:stack)
+make check         # format:check + lint + theme/sync guards + typecheck, then bun test
 ```
 
-Gateway alone: `bun run --filter '@image-gateway/gateway' dev` — upstream creds resolve from 1Password via `secrets-run`; the local bearer is the literal `dev-local` (point the app's settings at `http://localhost:7716` with that token). App alone: `bun run tauri dev` in `app/`. Root `typecheck`/`test` fan out across workspaces the same way (`make check` runs everything).
+Root `typecheck`/`test` fan out across the workspaces (`shared`, `app`). The Rust/Tauri runtime is only verified by running the app on the MacBook.
 
 ## Logs
 
-| What | Where |
-|-|-|
-| App (dev + packaged .app) | `~/Library/Logs/<bundle-identifier>/imagegen.log` via `tauri-plugin-log` (also mirrored to stdout in dev). Captures generation failures, library warnings, and uncaught webview errors. |
-| Gateway, local dev | stdout in the terminal — single-line JSON per event. |
-| Gateway, VPS | `make gateway-logs` (same JSON lines; greppable, picked up by the VPS monitoring stack). |
+App (dev + packaged `.app`): `~/Library/Logs/com.jkrumm.image-gen/imagegen.log` via `tauri-plugin-log` (also mirrored to stdout in dev; `make app-logs` tails it). Captures generation failures, library warnings, and uncaught webview errors.
 
 Personal software — public for reference, not built for reuse.

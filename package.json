@@ -3,20 +3,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --filter '*' dev:stack",
+    "dev": "bun run --filter '@image-gateway/app' dev:stack",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "check:theme": "./node_modules/.bin/basalt-ui check-theme",
     "check:sync": "./node_modules/.bin/basalt-ui sync --check",
-    "format": "oxfmt 'shared/**' 'gateway/**' 'app/**' 'scripts/**' '!app/src-tauri/gen/**' '!app/src-tauri/target/**' '!**/dist/**' --write",
-    "format:check": "oxfmt 'shared/**' 'gateway/**' 'app/**' 'scripts/**' '!app/src-tauri/gen/**' '!app/src-tauri/target/**' '!**/dist/**' --check",
+    "format": "oxfmt 'shared/**' 'app/**' 'scripts/**' '!app/src-tauri/gen/**' '!app/src-tauri/target/**' '!**/dist/**' --write",
+    "format:check": "oxfmt 'shared/**' 'app/**' 'scripts/**' '!app/src-tauri/gen/**' '!app/src-tauri/target/**' '!**/dist/**' --check",
     "pre": "bun run format:check && bun run lint && bun run check:theme && bun run check:sync && bun run typecheck"
   },
   "workspaces": [
     "shared",
-    "gateway",
     "app"
   ],
   "basalt": {
