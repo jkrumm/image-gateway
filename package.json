@@ -2,6 +2,7 @@
   "name": "image-gateway",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.4.3",
   "scripts": {
     "dev": "bun run --filter '@image-gateway/app' dev:stack",
     "typecheck": "bun run --filter '*' typecheck",
