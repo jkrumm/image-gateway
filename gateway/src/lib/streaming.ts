@@ -3,14 +3,14 @@ import { magicBytesValid } from './upstream.js'
 import { readSSEFrames, parseSSEFrame, mapPartialImageFrame } from './sse.js'
 import type { UpstreamCompletedData, UpstreamPartialImageData } from './sse.js'
 import { buildResponseEnvelope, EMPTY_USAGE } from './response.js'
-import { reportUsage, reportUsageError, type UsageSubTool } from './usage.js'
+import { logRequestError, logRequestOk, type RequestSubTool } from './request-log.js'
 import { log } from './log.js'
 
 export interface StreamRequestContext {
   id: string
   model: ImageModel
   /** Route that opened the stream — carried through so usage keeps its grouping. */
-  subTool: UsageSubTool
+  subTool: RequestSubTool
   requestedModel: GenerateResponse['requested_model']
   routed: boolean
   routingReason?: string | undefined
@@ -57,10 +57,10 @@ export async function* streamImageResponse(
   context: StreamRequestContext,
 ): AsyncGenerator<StreamEvent> {
   // Every exit that isn't a `completed` frame is a failure, and each one must
-  // still reach argo — otherwise `outcome` is permanently 'ok' and the error-rate
-  // view shows a service that has never failed rather than one nobody measures.
+  // still write a `request.done` line — otherwise `outcome` is permanently 'ok'
+  // and the logs show a service that has never failed rather than one nobody measures.
   const fail = (err: unknown): StreamEvent => {
-    void reportUsageError({
+    logRequestError({
       requestId: context.id,
       model: context.model,
       subTool: context.subTool,
@@ -131,7 +131,7 @@ export async function* streamImageResponse(
           latencyMs,
         })
 
-        void reportUsage({
+        logRequestOk({
           requestId: context.id,
           model: context.model,
           subTool: context.subTool,

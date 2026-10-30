@@ -23,7 +23,7 @@ import {
   type EditImagesParams,
 } from '../lib/upstream.js'
 import { buildResponseFromUpstream } from '../lib/response.js'
-import { reportUsage, reportUsageError } from '../lib/usage.js'
+import { logRequestError, logRequestOk } from '../lib/request-log.js'
 import { streamImageResponse, type StreamRequestContext } from '../lib/streaming.js'
 import { log } from '../lib/log.js'
 import { buildUpstreamErrorBody } from '../lib/moderation-error.js'
@@ -203,7 +203,7 @@ export const editRoutes = new Elysia().post(
     } catch (err) {
       const errorBody = buildUpstreamErrorBody(err)
       log('edit.upstream_error', { error: errorBody.error.message, code: errorBody.error.code })
-      void reportUsageError({
+      logRequestError({
         requestId,
         model,
         subTool: 'edit',
@@ -227,7 +227,7 @@ export const editRoutes = new Elysia().post(
       latencyMs,
     })
 
-    void reportUsage({
+    logRequestOk({
       requestId: response.id,
       model,
       subTool: 'edit',

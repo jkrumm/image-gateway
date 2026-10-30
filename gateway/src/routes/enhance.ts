@@ -8,7 +8,7 @@ import {
 import { env } from '../env.js'
 import { planFromRequest, PlanUpstreamError, type ChatCompletionUsage } from '../lib/enhance.js'
 import { computeCost } from '../lib/pricing.js'
-import { reportUsage, reportUsageError } from '../lib/usage.js'
+import { logRequestError, logRequestOk } from '../lib/request-log.js'
 import { log } from '../lib/log.js'
 
 /**
@@ -46,7 +46,7 @@ export const enhanceRoutes = new Elysia().post(
       // A validation-retry failure still burned tokens on both attempts — report
       // them, or a planner that fails often reads as free.
       const spent = err instanceof PlanUpstreamError ? toUsage(err.usage) : undefined
-      void reportUsageError({
+      logRequestError({
         requestId,
         model: env.ENHANCE_MODEL,
         subTool: 'enhance',
@@ -62,10 +62,10 @@ export const enhanceRoutes = new Elysia().post(
     const usage = toUsage(result.usage)
     // Priced from `pricing.ts`'s TEXT_RATES, not RATES — a text model, not an
     // image one. A model missing from that table still yields
-    // `{ usd: null, source: 'none' }`, which argo renders as $0.
+    // `{ usd: null, source: 'none' }`.
     const cost = computeCost(env.ENHANCE_MODEL, usage)
 
-    void reportUsage({
+    logRequestOk({
       requestId,
       model: env.ENHANCE_MODEL,
       subTool: 'enhance',

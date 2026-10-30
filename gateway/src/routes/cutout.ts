@@ -12,7 +12,7 @@ import { InputError, prepareCutoutInput } from '../lib/cutout.js'
 import { log } from '../lib/log.js'
 import { removeBackground, ReplicateError } from '../lib/replicate.js'
 import { EMPTY_USAGE } from '../lib/response.js'
-import { reportUsage, reportUsageError } from '../lib/usage.js'
+import { logRequestError, logRequestOk } from '../lib/request-log.js'
 
 const IMAGE_FIELD = 'image'
 
@@ -68,7 +68,7 @@ export const cutoutRoutes = new Elysia().post(
     } catch (err) {
       if (!(err instanceof ReplicateError)) throw err
       log('cutout.upstream_error', { model, error: err.message })
-      void reportUsageError({
+      logRequestError({
         requestId,
         model,
         subTool: 'cutout',
@@ -81,7 +81,7 @@ export const cutoutRoutes = new Elysia().post(
     const { width, height } = await sharp(output).metadata()
     const cost = { usd: CUTOUT_PRICE_USD[model], source: 'computed' as const }
 
-    void reportUsage({
+    logRequestOk({
       requestId,
       model,
       subTool: 'cutout',

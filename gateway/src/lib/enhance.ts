@@ -426,7 +426,7 @@ async function callPlanModelWithBudgetRetry(
 /**
  * Thrown after the LLM's output fails validation twice (initial + one retry).
  * Carries the usage both attempts consumed — that spend is real and must still
- * reach argo, or a planner that fails often looks free.
+ * be logged, or a planner that fails often looks free.
  */
 export class PlanUpstreamError extends Error {
   constructor(

@@ -29,10 +29,6 @@ const Env = z.object({
   // OPENAI_BASE_URL by swapping the trailing `/openai/v1` for `/replicate/v1` — see
   // src/lib/replicate.ts. Set only when that derivation does not apply.
   REPLICATE_BASE_URL: z.url().optional(),
-  ARGO_USAGE_URL: z.url().optional(),
-  ARGO_API_SECRET: z.string().optional(),
-  // Labels usage telemetry records so local dev runs don't get counted as VPS traffic.
-  MACHINE: z.string().min(1).default('vps'),
 })
 
 export const env = Env.parse(process.env)

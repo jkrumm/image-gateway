@@ -19,8 +19,7 @@ Create the gateway-specific secret (account `tkrumm`):
 
 - `op://vps/image-gateway/API_SECRET` — generate a strong random bearer (the gateway's token).
 
-`OPENAI_BASE_URL` / `OPENAI_API_KEY` reuse the existing shared item (`op://common/anthropic/*`);
-`ARGO_API_SECRET` reuses `op://common/api/SECRET`.
+`OPENAI_BASE_URL` / `OPENAI_API_KEY` reuse the existing shared item (`op://common/anthropic/*`).
 
 ## 2. Add the service to the vps repo
 

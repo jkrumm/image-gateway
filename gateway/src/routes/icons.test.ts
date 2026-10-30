@@ -39,7 +39,6 @@ const transparentSquare = (): Promise<Buffer> =>
     .toBuffer()
 
 const OUT = (name: string): string => `https://replicate.delivery/pbxt/${name}`
-const ARGO = 'http://argo.test/api/usage'
 
 const png = (alpha: number): Promise<Buffer> =>
   sharp({
@@ -149,18 +148,9 @@ describe('POST /icons', () => {
     expect(errorResponseSchema.parse(await res.json()).error.message).toContain('boom')
   })
 
-  describe('Replicate steps and telemetry', () => {
-    interface ArgoRecord {
-      source_id: string
-      model: string
-      outcome: string
-      cost_usd: number | null
-      sub_tool: string
-    }
-
-    /** Fake Replicate + argo: each model's prediction succeeds and delivers its own file. */
-    async function mockStack(opts: { failModel?: string } = {}): Promise<ArgoRecord[]> {
-      const records: ArgoRecord[] = []
+  describe('Replicate steps', () => {
+    /** Fake Replicate: each model's prediction succeeds and delivers its own file. */
+    async function mockStack(opts: { failModel?: string } = {}): Promise<void> {
       const upscaled = await png(1)
       const cutOut = await sharp({
         create: {
@@ -191,14 +181,8 @@ describe('POST /icons', () => {
         'recraft-ai/recraft-remove-background': OUT('cut.png'),
         'recraft-ai/recraft-vectorize': OUT('vec.svg'),
       }
-      env.ARGO_USAGE_URL = ARGO
-      env.ARGO_API_SECRET = 'argo-secret'
-      global.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
         const url = String(input)
-        if (url === ARGO) {
-          records.push(...(JSON.parse(String(init?.body)) as { records: ArgoRecord[] }).records)
-          return new Response('{}')
-        }
         if (url in files) return new Response(files[url] as Uint8Array | string)
         const model = url.split('/models/')[1]?.replace('/predictions', '') ?? ''
         if (model === opts.failModel) {
@@ -206,16 +190,10 @@ describe('POST /icons', () => {
         }
         return Response.json({ id: 'p', status: 'succeeded', output: outputs[model] })
       }) as unknown as typeof fetch
-      return records
     }
 
-    afterEach(() => {
-      delete env.ARGO_USAGE_URL
-      delete env.ARGO_API_SECRET
-    })
-
-    test('a full run reports every step, sums the cost and writes one unique argo record per step', async () => {
-      const records = await mockStack()
+    test('a full run reports every step and sums the cost', async () => {
+      await mockStack()
       const res = await post({}, { bytes: await opaque400(), type: 'image/png' })
       expect(res.status).toBe(200)
       const parsed = iconsResponseSchema.parse(await res.json())
@@ -228,49 +206,13 @@ describe('POST /icons', () => {
       expect(parsed.cost.usd).toBeCloseTo(0.022, 6)
       expect(parsed.files.map((f) => f.name)).toContain('favicon.svg')
       expect(parsed.html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">')
-
-      await Bun.sleep(50)
-      expect(records.map((r) => r.model).toSorted()).toEqual([
-        'nightmareai/real-esrgan',
-        'recraft-ai/recraft-remove-background',
-        'recraft-ai/recraft-vectorize',
-      ])
-      expect(records.every((r) => r.sub_tool === 'icons' && r.outcome === 'ok')).toBe(true)
-      expect(records.map((r) => r.source_id).toSorted()).toEqual([
-        `${parsed.id}:cutout`,
-        `${parsed.id}:upscale`,
-        `${parsed.id}:vectorize`,
-      ])
     })
 
-    test('a request with no Replicate step still writes one zero-cost request record', async () => {
-      const records = await mockStack()
-      const res = await post(
-        { upscale: 'never', svg: 'never' },
-        { bytes: await transparentSquare(), type: 'image/png' },
-      )
-      const parsed = iconsResponseSchema.parse(await res.json())
-      await Bun.sleep(50)
-      expect(records).toHaveLength(1)
-      expect(records[0]).toMatchObject({ source_id: parsed.id, model: 'none', cost_usd: 0 })
-    })
-
-    test("a failing step is a 502 reported under that step's model, after the completed steps", async () => {
-      const records = await mockStack({ failModel: 'recraft-ai/recraft-vectorize' })
+    test('a failing step is a 502 carrying that step’s error', async () => {
+      await mockStack({ failModel: 'recraft-ai/recraft-vectorize' })
       const res = await post({}, { bytes: await opaque400(), type: 'image/png' })
       expect(res.status).toBe(502)
       expect(errorResponseSchema.parse(await res.json()).error.message).toContain('step exploded')
-
-      await Bun.sleep(50)
-      const failed = records.find((r) => r.outcome === 'error')
-      expect(failed?.model).toBe('recraft-ai/recraft-vectorize')
-      expect(
-        records
-          .filter((r) => r.outcome === 'ok')
-          .map((r) => r.model)
-          .toSorted(),
-      ).toEqual(['nightmareai/real-esrgan', 'recraft-ai/recraft-remove-background'])
-      expect(new Set(records.map((r) => r.source_id)).size).toBe(records.length)
     })
   })
 })

@@ -13,17 +13,16 @@ import { generateIcons, iconsHtml, ICONS_MANIFEST, StepFailure } from '../lib/ic
 import { log } from '../lib/log.js'
 import { removeBackground, upscale, vectorize } from '../lib/replicate.js'
 import { EMPTY_USAGE } from '../lib/response.js'
-import { reportUsage, reportUsageError } from '../lib/usage.js'
+import { logRequestError, logRequestOk } from '../lib/request-log.js'
 
 const IMAGE_FIELD = 'image'
 
 const RUNNERS = { removeBackground, upscale, vectorize }
 
-function reportSteps(requestId: string, steps: IconStep[]): void {
+function logSteps(requestId: string, steps: IconStep[]): void {
   for (const step of steps) {
-    void reportUsage({
+    logRequestOk({
       requestId,
-      sourceId: `${requestId}:${step.step}`,
       model: step.model,
       subTool: 'icons',
       usage: EMPTY_USAGE,
@@ -81,11 +80,10 @@ export const iconsRoutes = new Elysia().post(
       if (!(err instanceof StepFailure)) throw err
       const { failed, completed } = err
       log('icons.upstream_error', { step: failed.step, model: failed.model, error: err.message })
-      // One argo record per Replicate step: those that ran (their spend is real), then the failure.
-      reportSteps(requestId, completed)
-      void reportUsageError({
+      // One request line per Replicate step: those that ran (their spend is real), then the failure.
+      logSteps(requestId, completed)
+      logRequestError({
         requestId,
-        sourceId: `${requestId}:${failed.step}`,
         model: failed.model,
         subTool: 'icons',
         durationMs: failed.latency_ms,
@@ -100,9 +98,9 @@ export const iconsRoutes = new Elysia().post(
     }
 
     if (result.steps.length > 0) {
-      reportSteps(requestId, result.steps)
+      logSteps(requestId, result.steps)
     } else {
-      void reportUsage({
+      logRequestOk({
         requestId,
         model: 'none',
         subTool: 'icons',
